@@ -1,0 +1,265 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EA Version Comparison Dashboard - v4.1.3 vs v4.1.4 vs v4.1.5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #4ECDC4, #95E1D3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header p {
+            color: #95E1D3;
+            font-size: 1.1em;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(78, 205, 196, 0.2);
+        }
+        
+        .stat-card h3 {
+            color: #4ECDC4;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .stat-card .version-desc {
+            color: #95E1D3;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: #95E1D3;
+        }
+        
+        .stat-value {
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .positive {
+            color: #4ECDC4 !important;
+        }
+        
+        .negative {
+            color: #FF6B6B !important;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .section h2 {
+            color: #4ECDC4;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4ECDC4;
+        }
+        
+        .chart-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+        
+        .insights {
+            background: linear-gradient(135deg, rgba(78, 205, 196, 0.1), rgba(149, 225, 211, 0.1));
+            border-left: 4px solid #4ECDC4;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .insights h3 {
+            color: #4ECDC4;
+            margin-bottom: 10px;
+        }
+        
+        .insights ul {
+            margin-left: 20px;
+        }
+        
+        .insights li {
+            margin: 8px 0;
+        }
+        
+        .timestamp {
+            text-align: center;
+            color: #666;
+            margin-top: 40px;
+            padding: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 EA Version Comparison Dashboard</h1>
+            <p>Comprehensive Analysis: v4.1.3 (Baseline) → v4.1.4 (Multi-Asset) → v4.1.5 (Slope)</p>
+        </div>
+        
+        <div class="stats-grid">
+
+            <div class="stat-card">
+                <h3>v4.1.4 (Multi-Asset)</h3>
+                <div class="version-desc">Speed-prioritized weights + Q3 threshold</div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Trades:</span>
+                    <span class="stat-value">2,353</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Win Rate:</span>
+                    <span class="stat-value negative">39.4%</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Profit:</span>
+                    <span class="stat-value negative">$-260.28</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Profit Factor:</span>
+                    <span class="stat-value negative">0.90</span>
+                </div>
+            </div>
+
+        </div>
+        
+        <div class="section">
+            <h2>📊 Performance Comparison</h2>
+            <div class="chart-container">
+                <img src="win_rate_comparison.png" alt="Win Rate Comparison">
+            </div>
+            <div class="chart-container">
+                <img src="profit_comparison.png" alt="Profit Comparison">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🌍 Asset-Level Analysis</h2>
+            <div class="chart-container">
+                <img src="asset_performance_comparison.png" alt="Asset Performance">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🔧 Feature Evolution</h2>
+            <div class="chart-container">
+                <img src="feature_evolution.png" alt="Feature Evolution">
+            </div>
+            
+            <div class="insights">
+                <h3>Version Highlights:</h3>
+                <ul>
+                    <li><strong>v4.1.3 (Baseline):</strong> Original correlation-based weights from single-dataset analysis</li>
+                    <li><strong>v4.1.4 (Multi-Asset):</strong> Speed-prioritized weights (28%/25%) + Physics Score Q3 threshold (55.0) + Confluence 100% filter</li>
+                    <li><strong>v4.1.5 (Slope):</strong> Added directional momentum confirmation via slope analysis (3-bar linear slopes for Speed, Acceleration, Momentum, Jerk)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="insights">
+            <h3>🎯 Key Insights:</h3>
+            <ul>
+                <li><strong>Trade Count Evolution:</strong> Expect progressive filtering (v4.1.3 → v4.1.4 → v4.1.5) as we add more strict filters</li>
+                <li><strong>Win Rate Optimization:</strong> Each version should show improved win rate due to better signal quality filtering</li>
+                <li><strong>Slope Impact (v4.1.5):</strong> Directional momentum filters should catch "late" entries where metrics are declining</li>
+                <li><strong>Quality vs Quantity:</strong> Fewer trades with higher win rates = better risk-adjusted returns</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>📋 Next Steps</h2>
+            <div class="insights">
+                <h3>Analysis Workflow:</h3>
+                <ul>
+                    <li>Complete v4.1.4 backtests on all assets (NAS100, US30, EURUSD, USDJPY, AUDUSD)</li>
+                    <li>Compare v4.1.4 against v4.1.3 baseline to validate multi-asset optimizations</li>
+                    <li>Run v4.1.5 backtests on same datasets to measure slope filter effectiveness</li>
+                    <li>Analyze CSV data to optimize slope thresholds (MinSpeedSlope, MinAccelerationSlope)</li>
+                    <li>Create slope effectiveness report showing correlation between slopes and wins</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="timestamp">
+            <p>Dashboard Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p>Analysis Framework: Multi-Version EA Comparison Tool v1.0</p>
+        </div>
+    </div>
+</body>
+</html>

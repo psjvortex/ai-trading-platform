@@ -1,0 +1,27 @@
+{
+  "analysis_date": "2025-11-12",
+  "total_datasets": 10,
+  "total_correlations": 270,
+  "symbols": [
+    "NAS100"
+  ],
+  "versions": [
+    "v3.0",
+    "v2.6",
+    "v3.1",
+    "v3.1.1",
+    "v3.1.0",
+    "v3.2",
+    "v3.21"
+  ],
+  "timeframes": [
+    "05M",
+    "1H"
+  ],
+  "top_robust_correlation": {
+    "signal": "Acceleration",
+    "outcome": "Profit",
+    "mean_correlation": 0.08651670672173196,
+    "appears_in_datasets": 9
+  }
+}

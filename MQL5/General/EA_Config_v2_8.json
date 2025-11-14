@@ -1,0 +1,177 @@
+{
+  "meta": {
+    "config_version": "2.8.3_Pass03_Optimization",
+    "last_updated": "2025-11-07T10:45:00Z",
+    "update_trigger": "Pass_03_Physics_Filter_Optimization",
+    "optimization_cycle": 2,
+    "total_trades_analyzed": 281,
+    "notes": "Pass #3 - OPTIMIZATION TEST: Increased physics filters (Quality/Confluence 70→75). Target: 35-40% WR, maintain R:R ≥2:1. Expecting fewer but higher quality trades."
+  },
+  
+  "risk_management": {
+    "risk_percent_per_trade": 1.0,
+    "max_daily_risk": 3.0,
+    "max_concurrent_trades": 3,
+    "min_r_ratio": 1.5,
+    "stop_loss_pips": 50,
+    "take_profit_pips": 100
+  },
+  
+  "entry_system": {
+    "use_physics_entry": false,
+    "use_ma_entry": true,
+    "ma_fast_period": 10,
+    "ma_slow_period": 50,
+    "ma_method": "EMA",
+    "ma_price": "CLOSE"
+  },
+  
+  "physics_filters": {
+    "enabled": true,
+    "min_quality": 75.0,
+    "min_confluence": 75.0,
+    "zone_filter_enabled": true,
+    "regime_filter_enabled": true,
+    "blocked_zones": ["BEAR"],
+    "blocked_regimes": ["LOW"],
+    "reasoning": "Pass #3 OPTIMIZATION - Increased from 70→75 to improve trade quality and win rate"
+  },
+  
+  "time_filters": {
+    "enabled": false,
+    "allowed_hours": [],
+    "blocked_hours": [],
+    "day_filter_enabled": false,
+    "blocked_days": [],
+    "reasoning": "Pass #1 & #2: No time filters to establish baseline"
+  },
+  
+  "monitoring": {
+    "post_exit_monitor_bars": 50,
+    "enable_realtime_logging": true,
+    "enable_debug_mode": true
+  },
+  
+  "learning_parameters": {
+    "auto_update_enabled": false,
+    "min_trades_for_update": 100,
+    "update_frequency_trades": 50,
+    "min_win_rate_threshold": 0.40,
+    "min_profit_factor_threshold": 1.2,
+    "performance_window_trades": 100,
+    "confidence_threshold": 0.95
+  },
+  
+  "performance_thresholds": {
+    "acceptable_win_rate": 0.35,
+    "target_win_rate": 0.45,
+    "acceptable_profit_factor": 1.2,
+    "target_profit_factor": 1.5,
+    "max_drawdown_percent": 20.0,
+    "min_trades_per_week": 5
+  },
+  
+  "optimization_history": [
+    {
+      "version": "2.8_Pass_01",
+      "date": "2025-11-07",
+      "symbol": "US30",
+      "timeframe": "M15",
+      "date_range": "2025-01-02 to 2025-09-19 (259 days)",
+      "total_trades": 140,
+      "wins": 44,
+      "losses": 96,
+      "win_rate": 0.314,
+      "profit_factor": 1.01,
+      "net_profit": 42.06,
+      "avg_win": 134.3,
+      "avg_loss": -67.5,
+      "avg_win_pips": 482.3,
+      "avg_loss_pips": -196.5,
+      "rr_ratio": 2.45,
+      "exit_distribution": {
+        "ea_reversal": 0.80,
+        "stop_loss": 0.114,
+        "take_profit": 0.086
+      },
+      "changes": "Baseline test - MA 10/50 EMA, Physics filters ON (Q:70, C:70, avoid BEAR/LOW), Time filters OFF, SL:50 TP:100",
+      "result": "BASELINE ESTABLISHED - Barely profitable but excellent R:R. 80% EA exits = responsive crossover system. Low WR suggests need for better trade filtering.",
+      "recommendations": [
+        "Option 1: Increase physics filters (Quality/Confluence 75→80) for higher confidence trades",
+        "Option 2: Widen stops (75 pips) + TP (150 pips) to reduce whipsaw exits",
+        "Option 3: Slower fast MA (20 period) to reduce false signals",
+        "Option 4: Add time-of-day filters based on Pass #2 hourly analysis"
+      ]
+    },
+    {
+      "version": "2.8_Pass_02",
+      "date": "2025-11-07",
+      "symbol": "US30",
+      "timeframe": "M15",
+      "date_range": "2025-01-02 to 2025-09-24 (267 days)",
+      "total_trades": 141,
+      "wins": 44,
+      "losses": 97,
+      "win_rate": 0.312,
+      "profit_factor": 1.00,
+      "net_profit": 5.52,
+      "avg_win": 81.81,
+      "avg_loss": -37.05,
+      "rr_ratio": 2.21,
+      "exit_distribution": {
+        "ea_reversal": 0.801,
+        "stop_loss": 0.113,
+        "take_profit": 0.085
+      },
+      "changes": "NONE - exact same parameters as Pass #1 (variance test)",
+      "result": "VARIANCE TEST PASSED ✅ - Trade count +0.7%, WR -0.2%, PF -0.8%, R:R -9.9%. All within acceptable ranges. System behavior is CONSISTENT and ROBUST.",
+      "variance_analysis": {
+        "trade_count_variance": "+0.7%",
+        "win_rate_variance": "-0.2%",
+        "profit_factor_variance": "-0.8%",
+        "net_pl_variance": "-$36.54",
+        "rr_ratio_variance": "-9.9%",
+        "exit_distribution_variance": "Negligible (EA: 80.1% vs 80.0%, SL: 11.3% vs 11.4%, TP: 8.5% vs 8.6%)",
+        "assessment": "ACCEPTABLE - All variance metrics within thresholds (Trade ±15%, WR ±5%, R:R ±20%)"
+      },
+      "combined_baseline": {
+        "avg_trades": 140.5,
+        "avg_win_rate": 0.313,
+        "avg_profit_factor": 1.01,
+        "avg_net_pl": 23.79,
+        "avg_rr_ratio": 2.33,
+        "conclusion": "Low win rate (~31%) compensated by excellent R:R (>2:1). Barely profitable = needs win rate improvement OR wider stops. MA crossover system highly responsive (80%+ EA exits). Physics filters working but not aggressive enough."
+      },
+      "recommendations": [
+        "✅ READY FOR OPTIMIZATION - Baseline is robust across 2 passes",
+        "🎯 PRIMARY: Increase physics filters to 75 (Q/C from 70) - highest priority",
+        "🔄 ALTERNATIVE: Widen stops to 75 pips + TP to 150 pips (maintain 2:1 R:R)",
+        "🐢 CONSERVATIVE: Slow fast MA to period 20 (from 10) to reduce false signals",
+        "📊 DATA-DRIVEN: Analyze signal CSV for time-of-day patterns before adding filters"
+      ]
+    },
+    {
+      "version": "2.8_Pass_03",
+      "date": "2025-11-07",
+      "symbol": "US30",
+      "timeframe": "M15",
+      "status": "RUNNING",
+      "purpose": "OPTIMIZATION - Test increased physics filters for higher win rate",
+      "changes": "MinQuality: 70→75, MinConfluence: 70→75 (all other settings unchanged)",
+      "expected_results": {
+        "trade_count": "80-120 trades (expect 20-40% reduction due to stricter filters)",
+        "win_rate": "35-40% (target improvement from 31.3% baseline)",
+        "profit_factor": "1.15-1.30 (improvement from 1.01 baseline)",
+        "rr_ratio": "2.0-2.5 (maintain similar to baseline)",
+        "net_pl": "+$100-200 (improvement from +$23.79 baseline avg)"
+      },
+      "success_criteria": {
+        "minimum_win_rate": 0.35,
+        "minimum_profit_factor": 1.15,
+        "minimum_rr_ratio": 2.0,
+        "minimum_net_pl": 50.0,
+        "assessment": "If WR ≥35% AND PF ≥1.15 → SUCCESS. If WR <35% → try Option 2 (wider stops) or Option 3 (slower MA)."
+      }
+    }
+  ]
+}

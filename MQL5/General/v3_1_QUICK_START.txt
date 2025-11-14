@@ -1,0 +1,33 @@
+═══════════════════════════════════════════════════════════════════
+  🚀 TICKPHYSICS v3.1 - QUICK START GUIDE
+═══════════════════════════════════════════════════════════════════
+
+📂 FILE LOCATION:
+   /MQL5/Experts/TickPhysics/TP_Integrated_EA_Crossover_3_1.mq5
+
+⚙️  KEY SETTINGS (verify before running):
+   ✅ UsePhysicsFilters = true
+   ✅ UseZoneFilter = true
+   ✅ UseRegimeFilter = true
+   ✅ UseTimeFilter = true
+   ✅ AllowedHours = "2,12,19,23"
+   ✅ BlockedHours = "3,4,5,6,7,8,9,11,14,20"
+
+🎯 WHAT v3.1 DOES:
+   1. BLOCKS BEAR zone (19% WR in v3.0)
+   2. BLOCKS LOW volatility regime (21.2% WR in v3.0)
+   3. ONLY trades hours 2,12,19,23 (best performers)
+   4. BLOCKS hours 3,4,5,6,7,8,9,11,14,20 (worst performers)
+
+📊 EXPECTED RESULTS:
+   • Win Rate: 35-40% (up from 28%)
+   • Profit Factor: >1.15 (up from 0.97)
+   • Net P&L: >$100 (up from -$7)
+   • Trade Count: 250-350 (down from 454 - fewer, better trades)
+
+📁 OUTPUT FILES:
+   • TP_Integrated_Signals_NAS100_v3.1.csv
+   • TP_Integrated_Trades_NAS100_v3.1.csv
+   • MTBacktest_Report_3.1.csv (save to Desktop)
+
+═══════════════════════════════════════════════════════════════════

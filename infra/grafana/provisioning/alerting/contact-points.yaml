@@ -1,0 +1,11 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: Dev Webhook
+    receivers:
+      - uid: dev-webhook
+        type: webhook
+        settings:
+          url: http://alert-webhook:8080/
+          httpMethod: POST
+        disableResolveMessage: false

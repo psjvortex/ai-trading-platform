@@ -1,0 +1,59 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlphttp/prometheusremotewrite:
+    # Example placeholder if you later use remote_write to Prometheus-compatible backends
+    endpoint: http://prometheus:9090/api/v1/write
+    # This exporter won't be used unless added to a pipeline
+  prometheus:
+    endpoint: ":8889"
+    send_timestamps: true
+    metric_expiration: 60m
+    enable_open_metrics: true
+    resource_to_telemetry_conversion:
+      enabled: true
+  logging:
+    verbosity: basic
+  otlphttp/tempo:
+    endpoint: http://tempo:4318
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+processors:
+  batch: {}
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 25
+  resourcedetection/system:
+    detectors: [system]
+
+extensions:
+  health_check:
+    endpoint: ":13133"
+  pprof: {}
+  zpages: {}
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug, otlphttp/tempo, otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [logging]

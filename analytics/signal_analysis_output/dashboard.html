@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal-Trade Correlation Analysis Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .stats-bar {
+            background: #f8f9fa;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px 40px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            padding: 0 40px;
+            overflow-x: auto;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .tab-button {
+            padding: 20px 30px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+        }
+
+        .tab-button:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .key-findings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .finding-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .finding-card h3 {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .finding-card .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .finding-card .description {
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            font-size: 1.8em;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .visualization {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .visualization img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .visualization h3 {
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .action-list {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+
+        .action-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .action-item h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .priority-1 { border-left: 4px solid #dc3545; }
+        .priority-2 { border-left: 4px solid #ffc107; }
+        .priority-3 { border-left: 4px solid #28a745; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .comparison-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .comparison-card h3 {
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .download-links {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .download-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .alert {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 5px solid #28a745;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 5px solid #17a2b8;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 5px solid #ffc107;
+        }
+
+        .emoji {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px 40px;
+            text-align: center;
+            color: #6c757d;
+            border-top: 2px solid #e9ecef;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                padding: 0 20px;
+            }
+            
+            .tab-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Signal-Trade Correlation Analysis</h1>
+            <p>NAS100 v3.1.1 Backtest Results | November 12, 2025</p>
+        </div>
+
+        <!-- Key Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-value">134</div>
+                <div class="stat-label">Total Trades</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">42.5%</div>
+                <div class="stat-label">Win Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">$76.38</div>
+                <div class="stat-label">Total Profit</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">$0.57</div>
+                <div class="stat-label">Avg Profit/Trade</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">267</div>
+                <div class="stat-label">Total Signals</div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="openTab(event, 'overview')">🎯 Overview</button>
+            <button class="tab-button" onclick="openTab(event, 'findings')">🏆 Key Findings</button>
+            <button class="tab-button" onclick="openTab(event, 'correlations')">📈 Correlations</button>
+            <button class="tab-button" onclick="openTab(event, 'visualizations')">📊 Visualizations</button>
+            <button class="tab-button" onclick="openTab(event, 'recommendations')">💡 Recommendations</button>
+            <button class="tab-button" onclick="openTab(event, 'downloads')">📁 Reports & Data</button>
+        </div>
+
+        <!-- Tab Content: Overview -->
+        <div id="overview" class="tab-content active">
+            <div class="section">
+                <h2>Executive Summary</h2>
+                <div class="alert alert-success">
+                    <strong>🎯 Critical Discovery:</strong> Trading only <strong>100% confluence signals</strong> could increase your average profit per trade by <strong>193%</strong> (from $0.57 to $1.67) while improving win rate from 42.5% to 56%.
+                </div>
+
+                <p style="font-size: 1.1em; line-height: 1.8; color: #2d3748; margin: 20px 0;">
+                    This comprehensive analysis correlates signal metrics with trading outcomes across 134 matched trades to identify which signal features have the biggest impact on profitability. Using Pearson and Spearman correlation analysis with statistical significance testing, we've identified the most predictive metrics for trading success.
+                </p>
+            </div>
+
+            <div class="section">
+                <h2>Top 3 Most Important Metrics</h2>
+                <div class="key-findings">
+                    <div class="finding-card">
+                        <h3><span class="emoji">👑</span> #1 Acceleration</h3>
+                        <div class="metric-value">+0.279</div>
+                        <div class="description">
+                            Correlation with Win Rate<br>
+                            <strong>Highest predictor</strong> of profitable trades<br>
+                            p-value: 0.001 (Highly Significant)
+                        </div>
+                    </div>
+                    <div class="finding-card">
+                        <h3><span class="emoji">🔗</span> #2 Confluence</h3>
+                        <div class="metric-value">+0.274</div>
+                        <div class="description">
+                            Correlation with Win Rate<br>
+                            <strong>100% vs 80%</strong> makes huge difference<br>
+                            Win Rate: 56% vs 29%
+                        </div>
+                    </div>
+                    <div class="finding-card">
+                        <h3><span class="emoji">⚡</span> #3 Jerk</h3>
+                        <div class="metric-value">+0.230</div>
+                        <div class="description">
+                            Correlation with Profit<br>
+                            <strong>Strong predictor</strong> of R:R ratio<br>
+                            p-value: 0.008 (Significant)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Performance Comparison: 100% vs 80% Confluence</h2>
+                <div class="comparison-grid">
+                    <div class="comparison-card" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                        <h3>✅ 100% Confluence Signals</h3>
+                        <div class="metric-row">
+                            <span>Average Profit:</span>
+                            <strong style="color: #28a745;">+$1.67</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Win Rate:</span>
+                            <strong style="color: #28a745;">56%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Average Pips:</span>
+                            <strong style="color: #28a745;">+93.46</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Total Trades:</span>
+                            <strong>68</strong>
+                        </div>
+                    </div>
+                    <div class="comparison-card" style="background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);">
+                        <h3>❌ 80% Confluence Signals</h3>
+                        <div class="metric-row">
+                            <span>Average Profit:</span>
+                            <strong style="color: #dc3545;">-$0.56</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Win Rate:</span>
+                            <strong style="color: #dc3545;">29%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Average Pips:</span>
+                            <strong style="color: #dc3545;">-10.10</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Total Trades:</span>
+                            <strong>66</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Key Findings -->
+        <div id="findings" class="tab-content">
+            <div class="section">
+                <h2>Top 10 Signal-Outcome Correlations</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Signal Metric</th>
+                            <th>Outcome Metric</th>
+                            <th>Correlation</th>
+                            <th>P-Value</th>
+                            <th>Significance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>Acceleration</strong></td>
+                            <td>Win Rate</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.279</td>
+                            <td>0.001</td>
+                            <td><span class="badge badge-success">✓ Highly Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong>Confluence</strong></td>
+                            <td>Win Rate</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.274</td>
+                            <td>0.001</td>
+                            <td><span class="badge badge-success">✓ Highly Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong>Confluence</strong></td>
+                            <td>Hold Time</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.266</td>
+                            <td>0.002</td>
+                            <td><span class="badge badge-success">✓ Highly Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>Acceleration</strong></td>
+                            <td>Profit</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.258</td>
+                            <td>0.003</td>
+                            <td><span class="badge badge-success">✓ Highly Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>Acceleration</strong></td>
+                            <td>R:R Ratio</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.256</td>
+                            <td>0.003</td>
+                            <td><span class="badge badge-success">✓ Highly Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><strong>Jerk</strong></td>
+                            <td>Profit</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.230</td>
+                            <td>0.008</td>
+                            <td><span class="badge badge-success">✓ Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td><strong>Acceleration</strong></td>
+                            <td>Pips</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.228</td>
+                            <td>0.008</td>
+                            <td><span class="badge badge-success">✓ Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>8</td>
+                            <td><strong>Jerk</strong></td>
+                            <td>R:R Ratio</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.225</td>
+                            <td>0.009</td>
+                            <td><span class="badge badge-success">✓ Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>9</td>
+                            <td><strong>Momentum</strong></td>
+                            <td>Profit</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.210</td>
+                            <td>0.015</td>
+                            <td><span class="badge badge-success">✓ Significant</span></td>
+                        </tr>
+                        <tr>
+                            <td>10</td>
+                            <td><strong>Speed</strong></td>
+                            <td>Win Rate</td>
+                            <td style="color: #28a745; font-weight: bold;">+0.207</td>
+                            <td>0.017</td>
+                            <td><span class="badge badge-success">✓ Significant</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>Performance by Signal Quality</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Quality Level</th>
+                            <th>Avg Profit</th>
+                            <th>Win Rate</th>
+                            <th>Avg Pips</th>
+                            <th>Avg R:R</th>
+                            <th>Trade Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Medium (90-95%)</td>
+                            <td style="color: #28a745;">$0.61</td>
+                            <td>42%</td>
+                            <td style="color: #28a745;">46.91</td>
+                            <td>0.06</td>
+                            <td><strong>121</strong></td>
+                        </tr>
+                        <tr>
+                            <td>High (95-97%)</td>
+                            <td style="color: #dc3545;">-$0.09</td>
+                            <td>44%</td>
+                            <td style="color: #dc3545;">-7.06</td>
+                            <td>-0.01</td>
+                            <td>9</td>
+                        </tr>
+                        <tr>
+                            <td>Very High (97+%)</td>
+                            <td style="color: #28a745;">$0.78</td>
+                            <td>50%</td>
+                            <td style="color: #28a745;">18.98</td>
+                            <td>0.07</td>
+                            <td>4</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="alert alert-warning">
+                    <strong>⚠️ Note:</strong> High quality (95-97%) signals surprisingly underperform. This may indicate overfitting in the quality calculation. Further investigation recommended.
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Momentum Impact by Direction</h2>
+                <div class="comparison-grid">
+                    <div class="comparison-card">
+                        <h3>📈 BUY Signals</h3>
+                        <div class="metric-row">
+                            <span>Momentum-Profit Correlation:</span>
+                            <strong style="color: #28a745;">+0.252</strong>
+                        </div>
+                        <p style="margin-top: 15px; color: #2d3748;">
+                            <strong>Strong correlation.</strong> Momentum is highly predictive for bullish trades. Apply stricter momentum filters.
+                        </p>
+                    </div>
+                    <div class="comparison-card">
+                        <h3>📉 SELL Signals</h3>
+                        <div class="metric-row">
+                            <span>Momentum-Profit Correlation:</span>
+                            <strong style="color: #6c757d;">+0.051</strong>
+                        </div>
+                        <p style="margin-top: 15px; color: #2d3748;">
+                            <strong>Weak correlation.</strong> Momentum is 5x less important for bearish trades. Focus on other metrics instead.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Correlations -->
+        <div id="correlations" class="tab-content">
+            <div class="section">
+                <h2>Complete Metrics Ranking</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Metric</th>
+                            <th>Profit Correlation</th>
+                            <th>Win Rate Correlation</th>
+                            <th>Overall Impact</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><strong>Acceleration</strong></td>
+                            <td style="color: #28a745;">+0.258 ⭐⭐⭐</td>
+                            <td style="color: #28a745;">+0.279 ⭐⭐⭐</td>
+                            <td><span class="badge badge-success">Very High</span></td>
+                            <td>Increase weight significantly (→30%)</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td><strong>Confluence</strong></td>
+                            <td style="color: #ffc107;">+0.160 ⭐</td>
+                            <td style="color: #28a745;">+0.274 ⭐⭐⭐</td>
+                            <td><span class="badge badge-success">Very High</span></td>
+                            <td>Use as binary filter (100% only)</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td><strong>Jerk</strong></td>
+                            <td style="color: #28a745;">+0.230 ⭐⭐</td>
+                            <td style="color: #ffc107;">+0.155 ⭐</td>
+                            <td><span class="badge badge-info">Moderate-High</span></td>
+                            <td>Increase weight moderately (→15%)</td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td><strong>Momentum</strong></td>
+                            <td style="color: #28a745;">+0.210 ⭐⭐</td>
+                            <td style="color: #28a745;">+0.196 ⭐⭐</td>
+                            <td><span class="badge badge-info">Moderate</span></td>
+                            <td>Keep weight, apply directionally (15%)</td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td><strong>Speed</strong></td>
+                            <td style="color: #ffc107;">+0.190 ⭐</td>
+                            <td style="color: #28a745;">+0.207 ⭐⭐</td>
+                            <td><span class="badge badge-info">Moderate</span></td>
+                            <td>Maintain moderate weight (10%)</td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td><strong>Quality</strong></td>
+                            <td style="color: #6c757d;">Weak</td>
+                            <td style="color: #6c757d;">Weak</td>
+                            <td><span class="badge badge-warning">Low</span></td>
+                            <td>Reduce weight (→5%)</td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td><strong>Entropy</strong></td>
+                            <td style="color: #dc3545;">~0.00 ❌</td>
+                            <td style="color: #dc3545;">~0.00 ❌</td>
+                            <td><span class="badge badge-danger">None</span></td>
+                            <td>Remove from calculations (→0%)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>Suggested Signal Weighting Adjustment</h2>
+                <div class="comparison-grid">
+                    <div class="comparison-card">
+                        <h3>❌ Current (Equal Weighting)</h3>
+                        <div class="metric-row">
+                            <span>All metrics:</span>
+                            <strong>~14% each</strong>
+                        </div>
+                        <p style="margin-top: 15px; color: #6c757d;">
+                            Equal weighting doesn't account for predictive power differences. Results in suboptimal signal quality.
+                        </p>
+                    </div>
+                    <div class="comparison-card" style="background: #d4edda;">
+                        <h3>✅ Recommended (Evidence-Based)</h3>
+                        <div class="metric-row">
+                            <span>Acceleration:</span>
+                            <strong>30%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Confluence:</span>
+                            <strong>25%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Jerk:</span>
+                            <strong>15%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Momentum:</span>
+                            <strong>15%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Speed:</span>
+                            <strong>10%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Quality Baseline:</span>
+                            <strong>5%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Entropy:</span>
+                            <strong>0%</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Visualizations -->
+        <div id="visualizations" class="tab-content">
+            <div class="section">
+                <h2>Interactive Visualizations</h2>
+                
+                <div class="visualization">
+                    <h3>📊 Correlation Heatmap</h3>
+                    <p style="color: #6c757d; margin-bottom: 15px;">
+                        Complete correlation matrix showing relationships between all signal metrics and trading outcomes
+                    </p>
+                    <img src="correlation_heatmap.png" alt="Correlation Heatmap">
+                    <div style="margin-top: 15px; text-align: left; padding: 0 20px;">
+                        <p><strong>How to read:</strong></p>
+                        <ul style="color: #6c757d; line-height: 1.8;">
+                            <li><strong style="color: #28a745;">Green:</strong> Positive correlation (higher metric → better outcome)</li>
+                            <li><strong style="color: #dc3545;">Red:</strong> Negative correlation (higher metric → worse outcome)</li>
+                            <li><strong style="color: #ffc107;">Yellow/White:</strong> Weak or no correlation</li>
+                            <li><strong>Numbers:</strong> Correlation coefficient (-1.0 to +1.0)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="visualization">
+                    <h3>📈 Top Correlations Scatter Plots</h3>
+                    <p style="color: #6c757d; margin-bottom: 15px;">
+                        Six strongest signal-outcome relationships with regression lines
+                    </p>
+                    <img src="top_correlations_scatter.png" alt="Top Correlations Scatter Plots">
+                    <div style="margin-top: 15px; text-align: left; padding: 0 20px;">
+                        <p><strong>Key observations:</strong></p>
+                        <ul style="color: #6c757d; line-height: 1.8;">
+                            <li>Red dashed line shows the trend direction</li>
+                            <li>Correlation coefficient indicates strength of relationship</li>
+                            <li>P-value shows statistical significance (< 0.05 is significant)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="visualization">
+                    <h3>⭐ Performance by Signal Quality</h3>
+                    <p style="color: #6c757d; margin-bottom: 15px;">
+                        Trading performance breakdown across different signal quality levels
+                    </p>
+                    <img src="quality_performance.png" alt="Quality Performance Charts">
+                    <div style="margin-top: 15px; text-align: left; padding: 0 20px;">
+                        <p><strong>Insights:</strong></p>
+                        <ul style="color: #6c757d; line-height: 1.8;">
+                            <li>Most trades (90%) fall in Medium quality (90-95%) range</li>
+                            <li>Very High quality signals perform best but have small sample size</li>
+                            <li>High quality (95-97%) unexpectedly underperforms - requires investigation</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Recommendations -->
+        <div id="recommendations" class="tab-content">
+            <div class="section">
+                <h2>Actionable Recommendations</h2>
+                
+                <div class="action-list">
+                    <h3 style="margin-bottom: 20px; color: #2d3748;">Priority 1: Immediate Implementation</h3>
+                    
+                    <div class="action-item priority-1">
+                        <h4>🔴 Filter by Confluence (CRITICAL)</h4>
+                        <p>Only trade 100% confluence signals or significantly reduce position size for 80% confluence.</p>
+                        <p><strong>Expected Impact:</strong> Shift from -$0.56 to +$1.67 average profit per trade (+193%)</p>
+                        <p><strong>Implementation:</strong> Add confluence filter to entry logic before trade execution</p>
+                    </div>
+
+                    <div class="action-item priority-1">
+                        <h4>🔴 Prioritize High Acceleration</h4>
+                        <p>Add acceleration threshold: Only trade signals with acceleration above the median value.</p>
+                        <p><strong>Expected Impact:</strong> Higher win rate (up to 56%) and better R:R ratios</p>
+                        <p><strong>Implementation:</strong> Calculate median acceleration and add as minimum threshold</p>
+                    </div>
+
+                    <div class="action-item priority-1">
+                        <h4>🔴 Apply Directional Momentum Filters</h4>
+                        <p>For BUY signals: Require momentum > threshold. For SELL signals: Rely less on momentum, more on other factors.</p>
+                        <p><strong>Expected Impact:</strong> Improved BUY signal profitability (5x more important than for SELL)</p>
+                        <p><strong>Implementation:</strong> Add conditional momentum filters based on signal direction</p>
+                    </div>
+                </div>
+
+                <div class="action-list" style="margin-top: 20px;">
+                    <h3 style="margin-bottom: 20px; color: #2d3748;">Priority 2: Signal Weighting Adjustments</h3>
+                    
+                    <div class="action-item priority-2">
+                        <h4>🟡 Reweight Signal Quality Formula</h4>
+                        <p>Adjust metric weightings based on correlation analysis:</p>
+                        <ul style="margin-left: 20px; margin-top: 10px; color: #6c757d;">
+                            <li>Acceleration: 14% → <strong>30%</strong></li>
+                            <li>Confluence: 14% → <strong>25%</strong> (use as filter)</li>
+                            <li>Jerk: 14% → <strong>15%</strong></li>
+                            <li>Momentum: 14% → <strong>15%</strong> (20% for BUY, 10% for SELL)</li>
+                            <li>Speed: 14% → <strong>10%</strong></li>
+                            <li>Quality: 14% → <strong>5%</strong></li>
+                            <li>Entropy: 14% → <strong>0%</strong> (remove)</li>
+                        </ul>
+                    </div>
+
+                    <div class="action-item priority-2">
+                        <h4>🟡 Enhanced Acceleration Calculation</h4>
+                        <p>Since acceleration is the strongest predictor, investigate whether its calculation can be enhanced or optimized.</p>
+                        <p><strong>Research:</strong> Why is acceleration so predictive? Can we improve its sensitivity?</p>
+                    </div>
+                </div>
+
+                <div class="action-list" style="margin-top: 20px;">
+                    <h3 style="margin-bottom: 20px; color: #2d3748;">Priority 3: Research & Testing</h3>
+                    
+                    <div class="action-item priority-3">
+                        <h4>🟢 Investigate Quality Paradox</h4>
+                        <p>Why do 95-97% quality signals underperform? Is there overfitting in the quality calculation?</p>
+                        <p><strong>Action:</strong> Deep dive analysis of the 9 high-quality trades that performed poorly</p>
+                    </div>
+
+                    <div class="action-item priority-3">
+                        <h4>🟢 Understand Confluence Mechanics</h4>
+                        <p>Why is 80% confluence so poor? Are specific confluence combinations better than others?</p>
+                        <p><strong>Action:</strong> Break down confluence by component combinations to find optimal patterns</p>
+                    </div>
+
+                    <div class="action-item priority-3">
+                        <h4>🟢 Validate on Other Datasets</h4>
+                        <p>Test these findings on v3.1.0, v3.2, and other backtest versions to ensure robustness.</p>
+                        <p><strong>Action:</strong> Run correlation analysis on at least 2-3 other datasets</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Expected Impact Summary</h2>
+                <div class="comparison-grid">
+                    <div class="comparison-card">
+                        <h3>📉 Current Performance</h3>
+                        <div class="metric-row">
+                            <span>Total Trades:</span>
+                            <strong>134</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Win Rate:</span>
+                            <strong>42.5%</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Avg Profit/Trade:</span>
+                            <strong>$0.57</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Total Profit:</span>
+                            <strong>$76.38</strong>
+                        </div>
+                    </div>
+                    <div class="comparison-card" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                        <h3>📈 With 100% Confluence Filter</h3>
+                        <div class="metric-row">
+                            <span>Total Trades:</span>
+                            <strong>68 (-49%)</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Win Rate:</span>
+                            <strong style="color: #28a745;">56% (+13.5%)</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Avg Profit/Trade:</span>
+                            <strong style="color: #28a745;">$1.67 (+193%)</strong>
+                        </div>
+                        <div class="metric-row">
+                            <span>Total Profit:</span>
+                            <strong style="color: #28a745;">$113.27 (+48%)</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-success" style="margin-top: 20px;">
+                    <strong>🎯 Bottom Line:</strong> By implementing just the confluence filter alone, you could achieve <strong>3x better profit per trade</strong> while maintaining a healthy trade frequency.
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Downloads -->
+        <div id="downloads" class="tab-content">
+            <div class="section">
+                <h2>📄 Reports & Documentation</h2>
+                <p style="color: #6c757d; margin-bottom: 20px;">
+                    Download comprehensive reports and raw data files for further analysis
+                </p>
+
+                <div class="download-links">
+                    <a href="QUICK_REFERENCE.md" class="download-btn" download>
+                        📋 Quick Reference (2-page summary)
+                    </a>
+                    <a href="ANALYSIS_REPORT.md" class="download-btn" download>
+                        📊 Full Analysis Report (10 pages)
+                    </a>
+                    <a href="README.md" class="download-btn" download>
+                        📖 Directory Guide
+                    </a>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📊 Data Files</h2>
+                <p style="color: #6c757d; margin-bottom: 20px;">
+                    CSV and JSON files for custom analysis and programmatic access
+                </p>
+
+                <div class="download-links">
+                    <a href="correlation_results.csv" class="download-btn" download>
+                        📈 Correlation Results (CSV)
+                    </a>
+                    <a href="merged_signals_trades.csv" class="download-btn" download>
+                        🔗 Merged Signals & Trades (CSV)
+                    </a>
+                    <a href="analysis_summary.json" class="download-btn" download>
+                        💾 Analysis Summary (JSON)
+                    </a>
+                </div>
+
+                <table style="margin-top: 30px;">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Description</th>
+                            <th>Rows/Records</th>
+                            <th>Use Case</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>correlation_results.csv</strong></td>
+                            <td>Complete correlation table with statistical tests</td>
+                            <td>56 correlations</td>
+                            <td>Statistical analysis, custom queries</td>
+                        </tr>
+                        <tr>
+                            <td><strong>merged_signals_trades.csv</strong></td>
+                            <td>Combined signals + trades dataset</td>
+                            <td>134 trades</td>
+                            <td>Further analysis, custom visualizations</td>
+                        </tr>
+                        <tr>
+                            <td><strong>analysis_summary.json</strong></td>
+                            <td>Machine-readable summary statistics</td>
+                            <td>Key metrics</td>
+                            <td>Programmatic access, dashboards</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>🎨 Visualizations</h2>
+                <p style="color: #6c757d; margin-bottom: 20px;">
+                    High-resolution images for presentations and reports
+                </p>
+
+                <div class="download-links">
+                    <a href="correlation_heatmap.png" class="download-btn" download>
+                        🔥 Correlation Heatmap (PNG)
+                    </a>
+                    <a href="top_correlations_scatter.png" class="download-btn" download>
+                        📊 Top Correlations Scatter (PNG)
+                    </a>
+                    <a href="quality_performance.png" class="download-btn" download>
+                        ⭐ Quality Performance Charts (PNG)
+                    </a>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🔄 Regenerate Analysis</h2>
+                <div class="alert alert-info">
+                    <p><strong>To run the analysis on different datasets:</strong></p>
+                    <ol style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                        <li>Navigate to: <code>/analytics/</code></li>
+                        <li>Edit file paths in <code>signal_trade_correlation_analysis.py</code></li>
+                        <li>Run: <code>python signal_trade_correlation_analysis.py</code></li>
+                        <li>Results will be saved to <code>/analytics/signal_analysis_output/</code></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Signal-Trade Correlation Analysis Dashboard</strong></p>
+            <p>Generated: November 12, 2025 | Dataset: NAS100 v3.1.1 | Analysis: 134 matched trades</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                Python Analysis Tool: pandas, scipy, matplotlib, seaborn<br>
+                Source: <code>/analytics/signal_trade_correlation_analysis.py</code>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            // Hide all tab content
+            var tabcontent = document.getElementsByClassName("tab-content");
+            for (var i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+
+            // Remove active class from all tab buttons
+            var tabbuttons = document.getElementsByClassName("tab-button");
+            for (var i = 0; i < tabbuttons.length; i++) {
+                tabbuttons[i].classList.remove("active");
+            }
+
+            // Show the current tab and mark button as active
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+    </script>
+</body>
+</html>

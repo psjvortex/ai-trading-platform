@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "backend: test",
+      "type": "shell",
+      "command": "pytest -q",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": ["$python"],
+      "group": "test"
+    },
+    {
+      "label": "web: test",
+      "type": "shell",
+      "command": "pnpm test",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "group": "test"
+    },
+    {
+      "label": "backend: lint",
+      "type": "shell",
+      "command": "ruff check . && black --check .",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "build"
+    },
+    {
+      "label": "web: lint",
+      "type": "shell",
+      "command": "pnpm lint",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "group": "build"
+    }
+  ]
+}

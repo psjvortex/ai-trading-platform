@@ -1,0 +1,416 @@
+[
+  {
+    "dataset": "NAS100_5M",
+    "asset_class": "Index",
+    "total_trades": 350,
+    "win_rate": 0.4057142857142857,
+    "total_profit": 14.020000000000003,
+    "correlations": {
+      "Acceleration": {
+        "profit_corr": 0.09389398462819422,
+        "profit_p": 0.07939814481627468,
+        "win_corr": 0.11603378373105615,
+        "win_p": 0.029979302679399862,
+        "significant": "True"
+      },
+      "Speed": {
+        "profit_corr": 0.10036802482263332,
+        "profit_p": 0.06069158859350377,
+        "win_corr": 0.1607817660288775,
+        "win_p": 0.002554231321131675,
+        "significant": "True"
+      },
+      "Jerk": {
+        "profit_corr": 0.028096633157266813,
+        "profit_p": 0.6003738782513365,
+        "win_corr": 0.05594338823532241,
+        "win_p": 0.2966341795814396,
+        "significant": "False"
+      },
+      "Momentum": {
+        "profit_corr": 0.06660900295155132,
+        "profit_p": 0.2138444648876754,
+        "win_corr": 0.11015024999996532,
+        "win_p": 0.03943471274720723,
+        "significant": "True"
+      },
+      "Confluence": {
+        "profit_corr": -0.0028975236514561806,
+        "profit_p": 0.9569240903458667,
+        "win_corr": 0.1232228369110141,
+        "win_p": 0.021119824906526752,
+        "significant": "True"
+      },
+      "Quality": {
+        "profit_corr": -9.331266826572901e-05,
+        "profit_p": 0.9986121003032661,
+        "win_corr": -0.022564961234459713,
+        "win_p": 0.6739776862125432,
+        "significant": "False"
+      }
+    },
+    "physics_score": {
+      "profit_corr": 0.061650161464144336,
+      "profit_p": 0.25000490819770477,
+      "win_corr": 0.17043560133043925,
+      "win_p": 0.0013714161902254765,
+      "mean": 59.73521836873096,
+      "median": 79.58672458378446,
+      "q1_win_rate": 0.29545454545454547,
+      "q2_win_rate": 0.367816091954023,
+      "q3_win_rate": 0.5280898876404494,
+      "q4_win_rate": 0.43023255813953487,
+      "q3_best": "True"
+    },
+    "confluence": {
+      "conf_80_win_rate": 0.34946236559139787,
+      "conf_100_win_rate": 0.4720496894409938,
+      "conf_100_better": "True"
+    }
+  },
+  {
+    "dataset": "NAS100_15M",
+    "asset_class": "Index",
+    "total_trades": 85,
+    "win_rate": 0.4470588235294118,
+    "total_profit": 6.230000000000003,
+    "correlations": {
+      "Acceleration": {
+        "profit_corr": 0.04857075393698739,
+        "profit_p": 0.6589012781544775,
+        "win_corr": 0.22360028774536528,
+        "win_p": 0.03967728896627167,
+        "significant": "True"
+      },
+      "Speed": {
+        "profit_corr": -0.03805121025298038,
+        "profit_p": 0.7295337729210545,
+        "win_corr": 0.2242221580649002,
+        "win_p": 0.039116039140294045,
+        "significant": "True"
+      },
+      "Jerk": {
+        "profit_corr": 0.10800487405799868,
+        "profit_p": 0.3251676256590084,
+        "win_corr": 0.16063050066793697,
+        "win_p": 0.14195017662554285,
+        "significant": "False"
+      },
+      "Momentum": {
+        "profit_corr": -0.3024834804023194,
+        "profit_p": 0.004897454392026327,
+        "win_corr": 0.05176120291515162,
+        "win_p": 0.6380232095886509,
+        "significant": "True"
+      },
+      "Confluence": {
+        "profit_corr": -0.00029867309952903275,
+        "profit_p": 0.9978354550484124,
+        "win_corr": 0.22117269653416938,
+        "win_p": 0.041932849776836395,
+        "significant": "True"
+      },
+      "Quality": {
+        "profit_corr": 0.19053367339799288,
+        "profit_p": 0.08069570927219974,
+        "win_corr": 0.027606961909208895,
+        "win_p": 0.8019665517054145,
+        "significant": "False"
+      }
+    },
+    "physics_score": {
+      "profit_corr": 0.026773373863187393,
+      "profit_p": 0.8078294606219272,
+      "win_corr": 0.28304589863174967,
+      "win_p": 0.008669327488535378,
+      "mean": 68.3421411229251,
+      "median": 86.9062233371671,
+      "q1_win_rate": 0.3181818181818182,
+      "q2_win_rate": 0.2857142857142857,
+      "q3_win_rate": 0.5833333333333334,
+      "q4_win_rate": 0.6111111111111112,
+      "q3_best": "False"
+    },
+    "confluence": {
+      "conf_80_win_rate": 0.3409090909090909,
+      "conf_100_win_rate": 0.5609756097560976,
+      "conf_100_better": "True"
+    }
+  },
+  {
+    "dataset": "US30_5M",
+    "asset_class": "Index",
+    "total_trades": 266,
+    "win_rate": 0.45112781954887216,
+    "total_profit": 8.769999999999996,
+    "correlations": {
+      "Acceleration": {
+        "profit_corr": 0.08632985765859429,
+        "profit_p": 0.16032214095795594,
+        "win_corr": 0.16974991193747735,
+        "win_p": 0.0055087865823368,
+        "significant": "True"
+      },
+      "Speed": {
+        "profit_corr": 0.0787087075473291,
+        "profit_p": 0.20067151518255066,
+        "win_corr": 0.16782357679205914,
+        "win_p": 0.00607481237539178,
+        "significant": "True"
+      },
+      "Jerk": {
+        "profit_corr": 0.04688789490355739,
+        "profit_p": 0.4463369974623153,
+        "win_corr": 0.12598298104939237,
+        "win_p": 0.04005014573130667,
+        "significant": "True"
+      },
+      "Momentum": {
+        "profit_corr": 0.04963514470816537,
+        "profit_p": 0.4201221384298837,
+        "win_corr": 0.11788276781263458,
+        "win_p": 0.05482559298028726,
+        "significant": "False"
+      },
+      "Confluence": {
+        "profit_corr": 0.001863473385454279,
+        "profit_p": 0.9758682894899041,
+        "win_corr": 0.1472255857110067,
+        "win_p": 0.016262200720283688,
+        "significant": "True"
+      },
+      "Quality": {
+        "profit_corr": 0.047327740594077884,
+        "profit_p": 0.4420786856598309,
+        "win_corr": 0.02625928627969278,
+        "win_p": 0.6698655148916528,
+        "significant": "False"
+      }
+    },
+    "physics_score": {
+      "profit_corr": 0.027556900434303346,
+      "profit_p": 0.6545806318822015,
+      "win_corr": 0.18127256885386483,
+      "win_p": 0.0030056112390519345,
+      "mean": 62.52030462486262,
+      "median": 83.63333333333334,
+      "q1_win_rate": 0.3582089552238806,
+      "q2_win_rate": 0.37333333333333335,
+      "q3_win_rate": 0.5964912280701754,
+      "q4_win_rate": 0.5074626865671642,
+      "q3_best": "True"
+    },
+    "confluence": {
+      "conf_80_win_rate": 0.3925925925925926,
+      "conf_100_win_rate": 0.5238095238095238,
+      "conf_100_better": "True"
+    }
+  },
+  {
+    "dataset": "EURUSD_5M",
+    "asset_class": "Forex",
+    "total_trades": 674,
+    "win_rate": 0.3827893175074184,
+    "total_profit": -96.21000000000002,
+    "correlations": {
+      "Acceleration": {
+        "profit_corr": 0.057580195373511486,
+        "profit_p": 0.13534999015618082,
+        "win_corr": 0.07405945022142842,
+        "win_p": 0.054635213174218114,
+        "significant": "False"
+      },
+      "Speed": {
+        "profit_corr": 0.09666257712147135,
+        "profit_p": 0.012048180963052768,
+        "win_corr": 0.10977324150001352,
+        "win_p": 0.0043279178074234785,
+        "significant": "True"
+      },
+      "Jerk": {
+        "profit_corr": 0.04585163728052311,
+        "profit_p": 0.23452095174920184,
+        "win_corr": 0.05132394646538883,
+        "win_p": 0.18323801713097598,
+        "significant": "False"
+      },
+      "Momentum": {
+        "profit_corr": 0.07415289480452163,
+        "profit_p": 0.05432983925233159,
+        "win_corr": 0.04865535000973335,
+        "win_p": 0.20710393999958418,
+        "significant": "False"
+      },
+      "Confluence": {
+        "profit_corr": 0.046221202974305826,
+        "profit_p": 0.2307670179574538,
+        "win_corr": 0.06268643749216674,
+        "win_p": 0.10394685199677953,
+        "significant": "False"
+      },
+      "Quality": {
+        "profit_corr": -0.025860008225281703,
+        "profit_p": 0.5027106897243916,
+        "win_corr": -0.010127516425775432,
+        "win_p": 0.7929789143576021,
+        "significant": "False"
+      }
+    },
+    "physics_score": {
+      "profit_corr": 0.048348969213048536,
+      "profit_p": 0.20998177549399075,
+      "win_corr": 0.06009187977531273,
+      "win_p": 0.11909372685281334,
+      "mean": 60.323150124142614,
+      "median": 79.35082242057604,
+      "q1_win_rate": 0.3254437869822485,
+      "q2_win_rate": 0.3869047619047619,
+      "q3_win_rate": 0.4166666666666667,
+      "q4_win_rate": 0.40236686390532544,
+      "q3_best": "True"
+    },
+    "confluence": {
+      "conf_80_win_rate": 0.35093167701863354,
+      "conf_100_win_rate": 0.4119318181818182,
+      "conf_100_better": "True"
+    }
+  },
+  {
+    "dataset": "USDJPY_5M",
+    "asset_class": "Forex",
+    "total_trades": 725,
+    "win_rate": 0.4317241379310345,
+    "total_profit": -72.43,
+    "correlations": {
+      "Acceleration": {
+        "profit_corr": -0.011725901265654658,
+        "profit_p": 0.7526131485788623,
+        "win_corr": 0.07566669981289949,
+        "win_p": 0.04167075742962676,
+        "significant": "True"
+      },
+      "Speed": {
+        "profit_corr": -0.08919892252629603,
+        "profit_p": 0.016287861360153342,
+        "win_corr": 0.05446704940414476,
+        "win_p": 0.14288618663315322,
+        "significant": "True"
+      },
+      "Jerk": {
+        "profit_corr": -0.03127777312185395,
+        "profit_p": 0.40038581667728523,
+        "win_corr": 0.04164392132184643,
+        "win_p": 0.26277857978570757,
+        "significant": "False"
+      },
+      "Momentum": {
+        "profit_corr": -0.09378816248204194,
+        "profit_p": 0.011519323639440877,
+        "win_corr": 0.05605143221642384,
+        "win_p": 0.13160256484103536,
+        "significant": "True"
+      },
+      "Confluence": {
+        "profit_corr": -0.04702051839742427,
+        "profit_p": 0.20602153002519577,
+        "win_corr": 0.06653149031896631,
+        "win_p": 0.07340440025628471,
+        "significant": "False"
+      },
+      "Quality": {
+        "profit_corr": 0.002304529590158094,
+        "profit_p": 0.9506071328408464,
+        "win_corr": 0.02457054686096427,
+        "win_p": 0.5089071148457839,
+        "significant": "False"
+      }
+    },
+    "physics_score": {
+      "profit_corr": -0.05438155412093162,
+      "profit_p": 0.14351550779671826,
+      "win_corr": 0.06770066068385237,
+      "win_p": 0.06847907791859778,
+      "mean": 62.068207656289474,
+      "median": 82.5395881332136,
+      "q1_win_rate": 0.35714285714285715,
+      "q2_win_rate": 0.4530386740331492,
+      "q3_win_rate": 0.4585635359116022,
+      "q4_win_rate": 0.4585635359116022,
+      "q3_best": "True"
+    },
+    "confluence": {
+      "conf_80_win_rate": 0.3957703927492447,
+      "conf_100_win_rate": 0.4619289340101523,
+      "conf_100_better": "True"
+    }
+  },
+  {
+    "dataset": "AUDUSD_5M",
+    "asset_class": "Forex",
+    "total_trades": 603,
+    "win_rate": 0.33001658374792703,
+    "total_profit": -106.64000000000001,
+    "correlations": {
+      "Acceleration": {
+        "profit_corr": 0.056888589520550856,
+        "profit_p": 0.1629582669060818,
+        "win_corr": 0.10339215182213997,
+        "win_p": 0.011071082282531945,
+        "significant": "True"
+      },
+      "Speed": {
+        "profit_corr": 0.03499573395619466,
+        "profit_p": 0.3909825086243111,
+        "win_corr": 0.09372494260310515,
+        "win_p": 0.02134598374076661,
+        "significant": "True"
+      },
+      "Jerk": {
+        "profit_corr": 0.06033670259751272,
+        "profit_p": 0.13889838655260364,
+        "win_corr": 0.08031227865481357,
+        "win_p": 0.04869574589893008,
+        "significant": "True"
+      },
+      "Momentum": {
+        "profit_corr": 0.05073168722844535,
+        "profit_p": 0.21350453636926484,
+        "win_corr": 0.07789236094156915,
+        "win_p": 0.05591908421836464,
+        "significant": "False"
+      },
+      "Confluence": {
+        "profit_corr": 0.05057047993318196,
+        "profit_p": 0.21496486579533675,
+        "win_corr": 0.0941366477583906,
+        "win_p": 0.020779639060004268,
+        "significant": "True"
+      },
+      "Quality": {
+        "profit_corr": 0.0006472159944694656,
+        "profit_p": 0.9873460031361994,
+        "win_corr": -0.00386283749606923,
+        "win_p": 0.9245852127043573,
+        "significant": "False"
+      }
+    },
+    "physics_score": {
+      "profit_corr": 0.057327564798971414,
+      "profit_p": 0.15973170473198975,
+      "win_corr": 0.10591372939476995,
+      "win_p": 0.009247898081995663,
+      "mean": 58.52940198691329,
+      "median": 74.94553324866611,
+      "q1_win_rate": 0.2913907284768212,
+      "q2_win_rate": 0.2781456953642384,
+      "q3_win_rate": 0.32666666666666666,
+      "q4_win_rate": 0.423841059602649,
+      "q3_best": "False"
+    },
+    "confluence": {
+      "conf_80_win_rate": 0.28523489932885904,
+      "conf_100_win_rate": 0.3737704918032787,
+      "conf_100_better": "True"
+    }
+  }
+]

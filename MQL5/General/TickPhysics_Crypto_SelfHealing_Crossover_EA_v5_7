@@ -1,0 +1,1557 @@
+//+------------------------------------------------------------------+
+//|                TickPhysics_Crypto_SelfHealing_Crossover_EA_v5_7  |
+//|    MA Crossover + Complete Physics Filters + Self-Healing        |
+//|    Version 5.7 - CRITICAL ENTRY/EXIT LOGIC FIXES                 |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2025, QuanAlpha"
+#property version   "5.7"
+#property strict
+
+#include <Trade\Trade.mqh>
+
+//============================= VERSION TRACKING =========================//
+string EA_VERSION = "5.7_EntryExitFix";
+string EA_NAME = "TickPhysics_Crossover_Complete";
+
+//============================= v5.7 CHANGELOG ===========================//
+// CRITICAL FIXES FROM v5.6:
+// 1. ✅ FIXED: ManagePositions() - Exit logic was INVERTED
+//    - OLD: Close same-direction positions (WRONG!)
+//    - NEW: Close OPPOSITE-direction positions (CORRECT)
+// 2. ✅ FIXED: CheckExitSignal() return semantics clarified
+//    - Returns what TYPE to close (not what to enter)
+// 3. ✅ FIXED: OnTick() now processes reverse entries immediately
+//    - After position closes, reverse entry checks on same bar
+// 4. ✅ NEW: HasOpenPositionInDirection() prevents duplicate entries
+// 5. ✅ NEW: GetOppositeOrderType() for cleaner logic
+//========================================================================//
+
+//============================= CSV LOGGING ==============================//
+input group "=== CSV LOGGING (Self-Healing) ==="
+input bool InpEnableSignalLog = true;
+input bool InpEnableTradeLog = true;
+input string InpSignalLogFile = "TP_Crypto_Signals_Cross_v5_7.csv";
+input string InpTradeLogFile = "TP_Crypto_Trades_Cross_v5_7.csv";
+
+//============================= SELF-LEARNING ============================//
+input group "=== Self-Learning System (v5.7) ==="
+input bool InpEnableLearning = true;
+input string InpLearningFile = "TP_Learning_Cross_v5_7.json";
+
+//============================= INDICATOR SETTINGS =======================//
+input group "=== TickPhysics Indicator ==="
+input string InpIndicatorName = "TickPhysics_Crypto_Indicator_v2_1";
+
+//============================= MA CROSSOVER BASELINE ====================//
+input group "=== MA Crossover Baseline (Deterministic Entry/Exit) ==="
+input bool InpUseMAEntry = true;              // Use MA crossover for entry
+input int InpMAFast_Entry = 10;               // Fast MA for entry
+input int InpMASlow_Entry = 30;               // Slow MA for entry
+input bool InpUseMAExit = true;               // Use MA crossover for exit
+input int InpMAFast_Exit = 10;                // Fast MA for exit
+input int InpMASlow_Exit = 25;                // Slow MA for exit
+input ENUM_MA_METHOD InpMAMethod = MODE_EMA;  // MA calculation method
+input ENUM_APPLIED_PRICE InpMAPrice = PRICE_CLOSE; // MA applied price
+
+//============================= RISK MANAGEMENT ==========================//
+input group "=== Risk Management (v5.0 SAFE DEFAULTS) ==="
+input double InpRiskPerTradePercent = 2.0;    // Risk per trade (% of equity)
+input double InpStopLossPercent = 3.0;        // Stop Loss (% of PRICE)
+input double InpTakeProfitPercent = 2.0;      // Take Profit (% of PRICE)
+input double InpMoveToBEAtPercent = 1.0;      // Move to BE at (% profit)
+input int InpMaxPositions = 1;
+input int InpMaxConsecutiveLosses = 3;
+
+//============================= ENTRY FILTERS ============================//
+input group "=== Entry Filters (Self-Optimizing) ==="
+input double InpMinTrendQuality = 70.0;
+input double InpMinConfluence = 60.0;
+input double InpMinMomentum = 50.0;
+input bool InpRequireGreenZone = false;
+input bool InpTradeOnlyNormalRegime = false;
+input int InpDisallowAfterDivergence = 5;
+input double InpMaxSpread = 500.0;            // Max spread
+
+//============================= ENTROPY FILTER ===========================//
+input group "=== Entropy Filter (Chaos Detection) ==="
+input bool InpUseEntropyFilter = false;       // Enable chaos detection
+input double InpMaxEntropy = 2.5;             // Max allowed entropy
+
+//============================= ADAPTIVE SL/TP ===========================//
+input group "=== Adaptive SL/TP (ATR-based) ==="
+input bool InpUseAdaptiveSLTP = false;        // ATR-based adjustment
+input double InpATRMultiplierSL = 2.0;        // ATR multiplier for SL
+input double InpATRMultiplierTP = 4.0;        // ATR multiplier for TP
+
+//============================= DAILY GOVERNANCE =========================//
+input group "=== Daily Governance ==="
+input double InpDailyProfitTarget = 10.0;
+input double InpDailyDrawdownLimit = 10.0;
+input bool InpPauseOnLimits = false;
+
+//============================= SESSION TIMES ============================//
+input group "=== Trading Hours ==="
+input bool InpUseSessionFilter = false;
+input string InpSessionStart = "00:00";
+input string InpSessionEnd = "23:59";
+
+//============================= PHYSICS & SELF-HEALING ===================//
+input group "=== Physics & Self-Healing (Toggle for Controlled QA) ==="
+input bool InpUsePhysics = false;             // Enable physics filters
+input bool InpUseSelfHealing = false;         // Enable self-healing optimization
+input bool InpUseTickPhysicsIndicator = false; // Use TickPhysics indicator signals
+
+//============================= CHART DISPLAY ============================//
+input group "=== Chart Display ==="
+input bool InpShowMALines = true;             // Show MA lines on chart
+input color InpColorFastEntry = clrBlue;      // Fast Entry MA color
+input color InpColorSlowEntry = clrYellow;    // Slow Entry MA color
+input color InpColorExit = clrWhite;          // Exit MA color
+input int InpMALineWidth = 2;                 // MA line width
+
+//============================= DEBUG MODE (v5.7) ========================//
+input group "=== Debug Mode (v5.7 - Entry/Exit Validation) ==="
+input bool InpEnableDebug = true;             // Enable debug logging
+
+//============================= GLOBAL VARIABLES =========================//
+CTrade trade;
+int indicatorHandle = INVALID_HANDLE;
+datetime lastBarTime = 0;
+datetime lastSignalLogTime = 0;
+
+// MA handles for baseline crossover
+int maFastEntry_Handle = INVALID_HANDLE;
+int maSlowEntry_Handle = INVALID_HANDLE;
+int maFastExit_Handle = INVALID_HANDLE;
+int maSlowExit_Handle = INVALID_HANDLE;
+
+// Chart window for MA display
+int chartWindow = 0;
+
+// Daily tracking
+double dailyStartBalance = 0;
+int dailyTradeCount = 0;
+int consecutiveLosses = 0;
+bool dailyPaused = false;
+datetime lastDayCheck = 0;
+
+// CSV handles
+int signalLogHandle = INVALID_HANDLE;
+int tradeLogHandle = INVALID_HANDLE;
+
+// Watchdog
+datetime lastTickTime = 0;
+
+// Track last signal to prevent duplicate entries
+static int lastSignalProcessed = 0;
+static datetime lastSignalTime = 0;
+
+//============================= v5.0: TRADE TRACKER =======================//
+struct TradeTracker
+{
+   ulong ticket;
+   datetime openTime;
+   double openPrice;
+   double sl;
+   double tp;
+   double lots;
+   ENUM_ORDER_TYPE type;
+   // Entry conditions
+   double entryQuality;
+   double entryConfluence;
+   double entryZone;
+   double entryRegime;
+   double entryEntropy;
+   double entryMAFast;
+   double entryMASlow;
+   double entrySpread;
+   // MFE/MAE tracking
+   double mfe;
+   double mae;
+};
+
+TradeTracker currentTrades[];
+
+//============================= v5.0: LEARNING STRUCTURE =================//
+struct LearningParameters
+{
+   double MinTrendQuality;
+   double MinConfluence;
+   double MinMomentum;
+   double StopLossPercent;
+   double TakeProfitPercent;
+   double RiskPerTradePercent;
+   
+   int totalTrades;
+   double winRate;
+   double profitFactor;
+   double sharpeRatio;
+   double maxDrawdown;
+   double avgWin;
+   double avgLoss;
+   double avgRRatio;
+   
+   string adjustQuality;
+   string adjustConfluence;
+   string adjustSL;
+   string adjustTP;
+   string adjustRisk;
+   string reason;
+   
+   datetime lastUpdate;
+   string version;
+   int learningCycle;
+};
+
+LearningParameters learningData;
+
+// Indicator buffer indices
+#define BUFFER_SPEED 0
+#define BUFFER_ACCEL 1
+#define BUFFER_ACCEL_COLOR 2
+#define BUFFER_MOMENTUM 3
+#define BUFFER_QUALITY 4
+#define BUFFER_QUALITY_COLOR 5
+#define BUFFER_DISTANCE_ROC 6
+#define BUFFER_JERK 7
+#define BUFFER_HIGH_THRESHOLD 8
+#define BUFFER_LOW_THRESHOLD 9
+#define BUFFER_ZERO_LINE 10
+#define BUFFER_QUALITY_GLOW 11
+#define BUFFER_MOM_SPIKE 12
+#define BUFFER_MOM_SPIKE_COLOR 13
+#define BUFFER_CONFLUENCE 14
+#define BUFFER_CONFLUENCE_COLOR 15
+#define BUFFER_VOL_REGIME 16
+#define BUFFER_VOL_REGIME_COLOR 17
+#define BUFFER_DIVERGENCE 18
+#define BUFFER_DIVERGENCE_COLOR 19
+#define BUFFER_TRADING_ZONE 20
+#define BUFFER_ZONE_COLOR 21
+#define BUFFER_ENTROPY 22
+
+//============================= CHUNK 2: CORE FUNCTIONS ==================//
+
+//========================================================================//
+//===================== v5.7: HELPER FUNCTIONS ===========================//
+//========================================================================//
+
+// Returns the OPPOSITE order type
+ENUM_ORDER_TYPE GetOppositeOrderType(ENUM_ORDER_TYPE orderType)
+{
+   return (orderType == ORDER_TYPE_BUY) ? ORDER_TYPE_SELL : ORDER_TYPE_BUY;
+}
+
+// Checks if any open position exists in a specific direction
+bool HasOpenPositionInDirection(ENUM_ORDER_TYPE orderType)
+{
+   for(int i = 0; i < PositionsTotal(); i++)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0) continue;
+      
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol)
+         continue;
+      
+      ENUM_ORDER_TYPE posType = (ENUM_ORDER_TYPE)PositionGetInteger(POSITION_TYPE);
+      if(posType == orderType)
+         return true;
+   }
+   return false;
+}
+
+//============================= ROBUST POINT VALUE =======================//
+double GetPointMoneyValue()
+{
+   double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+   double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   
+   if(tickSize > 0.0 && tickValue > 0.0)
+      return tickValue * (point / tickSize);
+   
+   double contractSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_CONTRACT_SIZE);
+   if(contractSize > 0.0 && point > 0.0)
+      return contractSize * point;
+   
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double price = (ask > 0 ? ask : (bid > 0 ? bid : 1.0));
+   double approx = price * point;
+   if(approx > 0.0) return approx;
+   
+   Print("ERROR: GetPointMoneyValue() - Cannot determine point value!");
+   return 0.0;
+}
+
+//============================= FIXED SL/TP CALCULATION ==================//
+bool ComputeSLTPFromPercent(double price, ENUM_ORDER_TYPE orderType, 
+                           double stopPercent, double tpPercent,
+                           double &out_sl, double &out_tp)
+{
+   double slDistance = price * stopPercent / 100.0;
+   double tpDistance = price * tpPercent / 100.0;
+   
+   int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+   
+   if(orderType == ORDER_TYPE_BUY)
+   {
+      out_sl = NormalizeDouble(price - slDistance, digits);
+      out_tp = NormalizeDouble(price + tpDistance, digits);
+   }
+   else
+   {
+      out_sl = NormalizeDouble(price + slDistance, digits);
+      out_tp = NormalizeDouble(price - tpDistance, digits);
+   }
+   
+   if(out_sl <= 0 || out_tp <= 0)
+   {
+      Print("ERROR: Invalid SL/TP: sl=", out_sl, " tp=", out_tp);
+      return false;
+   }
+   
+   return true;
+}
+
+//============================= LOT SIZE CALCULATION =====================//
+double CalculateLotSize(double riskMoney, double slDistance)
+{
+   if(slDistance <= 0)
+   {
+      Print("ERROR: Invalid SL distance: ", slDistance);
+      return 0;
+   }
+   
+   double pointMoneyValue = GetPointMoneyValue();
+   if(pointMoneyValue <= 0)
+   {
+      Print("ERROR: Cannot calculate lot size - point value is 0");
+      return 0;
+   }
+   
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   if(point <= 0)
+   {
+      Print("ERROR: Invalid point size");
+      return 0;
+   }
+   
+   double slDistancePoints = slDistance / point;
+   if(slDistancePoints <= 0)
+   {
+      Print("ERROR: SL distance in points is 0");
+      return 0;
+   }
+   
+   double lots = riskMoney / (slDistancePoints * pointMoneyValue);
+   
+   double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+   double lotStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+   
+   lots = MathMax(lots, minLot);
+   lots = MathMin(lots, maxLot);
+   
+   lots = MathFloor(lots / lotStep) * lotStep;
+   lots = NormalizeDouble(lots, 2);
+   
+   if(lots < minLot)
+      lots = minLot;
+   
+   return lots;
+}
+
+//========================================================================//
+//========================= v5.0: PHYSICS FILTERS ========================//
+//========================================================================//
+
+bool CheckPhysicsFilters(int signal, double quality, double confluence, 
+                        double zone, double regime, double entropy,
+                        string &rejectReason)
+{
+   if(!InpUsePhysics || !InpUseTickPhysicsIndicator)
+   {
+      rejectReason = "PhysicsDisabled";
+      return true;
+   }
+   
+   if(quality < InpMinTrendQuality)
+   {
+      rejectReason = StringFormat("QualityLow_%.1f<%.1f", quality, InpMinTrendQuality);
+      Print("❌ Physics Filter REJECT: Quality too low: ", quality, " < ", InpMinTrendQuality);
+      return false;
+   }
+   
+   if(confluence < InpMinConfluence)
+   {
+      rejectReason = StringFormat("ConfluenceLow_%.1f<%.1f", confluence, InpMinConfluence);
+      Print("❌ Physics Filter REJECT: Confluence too low: ", confluence, " < ", InpMinConfluence);
+      return false;
+   }
+   
+   if(InpRequireGreenZone)
+   {
+      if(signal == 1)
+      {
+         if(zone != 0)
+         {
+            string zoneStr = (zone == 1) ? "RED" : (zone == 2) ? "GOLD" : "GRAY";
+            rejectReason = StringFormat("ZoneMismatch_BUY_in_%s", zoneStr);
+            Print("❌ Physics Filter REJECT: BUY signal but not in GREEN zone. Zone=", zoneStr);
+            return false;
+         }
+      }
+      else if(signal == -1)
+      {
+         if(zone != 1)
+         {
+            string zoneStr = (zone == 0) ? "GREEN" : (zone == 2) ? "GOLD" : "GRAY";
+            rejectReason = StringFormat("ZoneMismatch_SELL_in_%s", zoneStr);
+            Print("❌ Physics Filter REJECT: SELL signal but not in RED zone. Zone=", zoneStr);
+            return false;
+         }
+      }
+   }
+   
+   if(InpTradeOnlyNormalRegime)
+   {
+      if(regime != 1)
+      {
+         string regimeStr = (regime == 0) ? "LOW" : "HIGH";
+         rejectReason = StringFormat("RegimeWrong_%s", regimeStr);
+         Print("❌ Physics Filter REJECT: Not in NORMAL regime. Regime=", regimeStr);
+         return false;
+      }
+   }
+   
+   if(InpUseEntropyFilter)
+   {
+      if(entropy > InpMaxEntropy)
+      {
+         rejectReason = StringFormat("EntropyChaotic_%.2f>%.2f", entropy, InpMaxEntropy);
+         Print("❌ Physics Filter REJECT: Entropy too high: ", entropy, " > ", InpMaxEntropy);
+         return false;
+      }
+   }
+   
+   rejectReason = "PASS";
+   Print("✅ Physics Filter PASS: Quality=", quality, " Confluence=", confluence);
+   return true;
+}
+
+//========================================================================//
+//========================= v5.0: SPREAD FILTER ==========================//
+//========================================================================//
+
+bool CheckSpreadFilter(double &spreadValue)
+{
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   
+   if(point <= 0) return false;
+   
+   spreadValue = (ask - bid) / point;
+   
+   if(spreadValue > InpMaxSpread)
+   {
+      Print("❌ SPREAD FILTER REJECT: Spread=", spreadValue, " points > Max=", InpMaxSpread);
+      return false;
+   }
+   
+   return true;
+}
+
+//========================================================================//
+//=================== v5.7: IMPROVED MA SIGNAL LOGIC ======================//
+//========================================================================//
+// FIXED: Returns (1=BUY when Fast>Slow, -1=SELL when Fast<Slow, 0=NO_CROSSOVER)
+//========================================================================//
+
+int GetMACrossoverSignal()
+{
+   if(!InpUseMAEntry)
+      return 0;
+   
+   if(InpEnableDebug)
+      Print("🔍 DEBUG: GetMACrossoverSignal() called");
+   
+   double maFastEntry[], maSlowEntry[];
+   ArraySetAsSeries(maFastEntry, true);
+   ArraySetAsSeries(maSlowEntry, true);
+   
+   if(CopyBuffer(maFastEntry_Handle, 0, 0, 3, maFastEntry) < 3)
+   {
+      if(InpEnableDebug)
+         Print("❌ DEBUG: Failed to copy Fast MA Entry buffer");
+      return 0;
+   }
+   
+   if(CopyBuffer(maSlowEntry_Handle, 0, 0, 3, maSlowEntry) < 3)
+   {
+      if(InpEnableDebug)
+         Print("❌ DEBUG: Failed to copy Slow MA Entry buffer");
+      return 0;
+   }
+   
+   if(InpEnableDebug)
+   {
+      Print("📊 DEBUG: MA VALUES (bar[1]=prev, bar[0]=current):");
+      Print("   Fast[1]=", maFastEntry[1], " | Fast[0]=", maFastEntry[0]);
+      Print("   Slow[1]=", maSlowEntry[1], " | Slow[0]=", maSlowEntry[0]);
+   }
+   
+   // ✅ BULLISH CROSSOVER: Fast crosses ABOVE Slow (entering bar 0)
+   bool bullishCross = (maFastEntry[1] < maSlowEntry[1] && maFastEntry[0] > maSlowEntry[0]);
+   
+   if(bullishCross)
+   {
+      Print("🟢 BULLISH CROSSOVER DETECTED!");
+      Print("   Previous bar: Fast=", maFastEntry[1], " vs Slow=", maSlowEntry[1], " (Fast≤Slow)");
+      Print("   Current bar:  Fast=", maFastEntry[0], " vs Slow=", maSlowEntry[0], " (Fast>Slow)");
+      return 1;  // BUY signal
+   }
+   
+   // ❌ BEARISH CROSSOVER: Fast crosses BELOW Slow (entering bar 0)
+   bool bearishCross = (maFastEntry[1] >= maSlowEntry[1] && maFastEntry[0] < maSlowEntry[0]);
+   
+   if(bearishCross)
+   {
+      Print("🔴 BEARISH CROSSOVER DETECTED!");
+      Print("   Previous bar: Fast=", maFastEntry[1], " vs Slow=", maSlowEntry[1], " (Fast≥Slow)");
+      Print("   Current bar:  Fast=", maFastEntry[0], " vs Slow=", maSlowEntry[0], " (Fast<Slow)");
+      return -1;  // SELL signal
+   }
+   
+   if(InpEnableDebug)
+      Print("⚪ DEBUG: No crossover detected this bar");
+   
+   return 0;
+}
+
+//========================================================================//
+//=================== v5.7: IMPROVED EXIT SIGNAL LOGIC ====================//
+//========================================================================//
+// FIXED: Returns type of position to CLOSE (not type to enter)
+// Returns: ORDER_TYPE_BUY to close BUY positions, ORDER_TYPE_SELL to close SELL
+// Returns: -1 if no exit signal
+//========================================================================//
+
+int GetPositionTypeToClose()
+{
+   if(!InpUseMAExit)
+      return -1;  // No exit signal
+   
+   double maFastExit[], maSlowExit[];
+   ArraySetAsSeries(maFastExit, true);
+   ArraySetAsSeries(maSlowExit, true);
+   
+   if(CopyBuffer(maFastExit_Handle, 0, 0, 3, maFastExit) < 3)
+      return -1;
+   if(CopyBuffer(maSlowExit_Handle, 0, 0, 3, maSlowExit) < 3)
+      return -1;
+   
+   // FAST crossed BELOW SLOW = bullish trend ended = close BUY positions
+   bool bullishTrendEnded = (maFastExit[1] >= maSlowExit[1] && maFastExit[0] < maSlowExit[0]);
+   if(bullishTrendEnded)
+   {
+      Print("🚪 EXIT SIGNAL: Bullish trend ended (Fast<Slow) - Close BUY positions");
+      return ORDER_TYPE_BUY;  // Close BUY positions
+   }
+   
+   // FAST crossed ABOVE SLOW = bearish trend ended = close SELL positions
+   bool bearishTrendEnded = (maFastExit[1] <= maSlowExit[1] && maFastExit[0] > maSlowExit[0]);
+   if(bearishTrendEnded)
+   {
+      Print("🚪 EXIT SIGNAL: Bearish trend ended (Fast>Slow) - Close SELL positions");
+      return ORDER_TYPE_SELL;  // Close SELL positions
+   }
+   
+   return -1;  // No exit signal
+}
+
+//========================================================================//
+//=================== v5.7: MANAGE POSITIONS (FIXED) ====================//
+//========================================================================//
+// ✅ v5.7: CRITICAL FIX
+// - Exit signal correctly closes SAME type positions (bullish died → close BUY)
+// - NOT opposite type as v5.6 had it
+//========================================================================//
+
+void ManagePositions()
+{
+   if(InpEnableDebug)
+      Print("🔍 DEBUG: ManagePositions() START");
+   
+   int exitSignal = GetPositionTypeToClose();
+   
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0) continue;
+      
+      if(PositionGetString(POSITION_SYMBOL) != _Symbol)
+         continue;
+      
+      ENUM_ORDER_TYPE orderType = (ENUM_ORDER_TYPE)PositionGetInteger(POSITION_TYPE);
+      
+      // ✅ v5.7 FIX: Close position if exit signal matches this position type
+      if(exitSignal == (int)orderType)
+      {
+         if(trade.PositionClose(ticket))
+         {
+            Print("✅ Position closed on MA exit signal: #", ticket);
+            LogTradeClose(ticket, "MA_Exit_Signal");
+            
+            if(InpEnableDebug)
+               Print("   Position #", ticket, " closed successfully");
+         }
+         continue;
+      }
+      
+      // Move to breakeven logic
+      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+      double currentSL = PositionGetDouble(POSITION_SL);
+      double currentPrice = (orderType == ORDER_TYPE_BUY) ? 
+         SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      
+      double profitPercent = 0;
+      if(orderType == ORDER_TYPE_BUY)
+         profitPercent = ((currentPrice - openPrice) / openPrice) * 100.0;
+      else
+         profitPercent = ((openPrice - currentPrice) / openPrice) * 100.0;
+      
+      if(profitPercent >= InpMoveToBEAtPercent)
+      {
+         bool needUpdate = false;
+         
+         if(orderType == ORDER_TYPE_BUY && currentSL < openPrice)
+            needUpdate = true;
+         else if(orderType == ORDER_TYPE_SELL && currentSL > openPrice)
+            needUpdate = true;
+         
+         if(needUpdate)
+         {
+            if(trade.PositionModify(ticket, openPrice, PositionGetDouble(POSITION_TP)))
+            {
+               Print("✅ Moved to breakeven: #", ticket);
+            }
+         }
+      }
+      
+      UpdateMFEMAE();
+   }
+   
+   if(InpEnableDebug)
+      Print("🔍 DEBUG: ManagePositions() END");
+}
+
+//========================================================================//
+//=================== COUNT POSITIONS ====================================//
+//========================================================================//
+
+int CountPositions()
+{
+   int count = 0;
+   for(int i = 0; i < PositionsTotal(); i++)
+   {
+      if(PositionGetTicket(i) == 0) continue;
+      if(PositionGetString(POSITION_SYMBOL) == _Symbol)
+         count++;
+   }
+   return count;
+}
+
+//========================================================================//
+//=================== GET DAILY P/L ======================================//
+//========================================================================//
+
+double GetDailyPnL()
+{
+   double currentBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+   if(dailyStartBalance <= 0) return 0;
+   return ((currentBalance - dailyStartBalance) / dailyStartBalance) * 100.0;
+}
+
+//========================================================================//
+//=================== CHECK DAILY RESET ==================================//
+//========================================================================//
+
+void CheckDailyReset()
+{
+   MqlDateTime timeStruct;
+   TimeToStruct(TimeCurrent(), timeStruct);
+   
+   MqlDateTime lastCheckStruct;
+   TimeToStruct(lastDayCheck, lastCheckStruct);
+   
+   if(timeStruct.day != lastCheckStruct.day)
+   {
+      Print("📅 Daily reset - New trading day");
+      dailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+      dailyTradeCount = 0;
+      consecutiveLosses = 0;
+      dailyPaused = false;
+      lastDayCheck = TimeCurrent();
+   }
+   
+   double pnl = GetDailyPnL();
+   
+   if(InpPauseOnLimits)
+   {
+      if(pnl >= InpDailyProfitTarget)
+      {
+         Print("✅ Daily profit target reached: ", pnl, "%");
+         dailyPaused = true;
+      }
+      else if(pnl <= -InpDailyDrawdownLimit)
+      {
+         Print("⛔ Daily drawdown limit reached: ", pnl, "%");
+         dailyPaused = true;
+      }
+   }
+}
+
+//========================================================================//
+//=================== CHECK SESSION ======================================//
+//========================================================================//
+
+bool IsWithinSession()
+{
+   MqlDateTime timeStruct;
+   TimeToStruct(TimeCurrent(), timeStruct);
+   
+   int currentMinutes = timeStruct.hour * 60 + timeStruct.min;
+   
+   string startParts[];
+   string endParts[];
+   StringSplit(InpSessionStart, ':', startParts);
+   StringSplit(InpSessionEnd, ':', endParts);
+   
+   int startMinutes = (int)StringToInteger(startParts[0]) * 60 + (int)StringToInteger(startParts[1]);
+   int endMinutes = (int)StringToInteger(endParts[0]) * 60 + (int)StringToInteger(endParts[1]);
+   
+   if(startMinutes <= endMinutes)
+      return (currentMinutes >= startMinutes && currentMinutes <= endMinutes);
+   else
+      return (currentMinutes >= startMinutes || currentMinutes <= endMinutes);
+}
+
+//============================= CHUNK 5: LOGGING FUNCTIONS ===============//
+
+//========================================================================//
+//=================== v5.0: LOG TRADE CLOSE ==============================//
+//========================================================================//
+
+void LogTradeClose(ulong ticket, string exitReason)
+{
+   int trackerIndex = -1;
+   for(int i = 0; i < ArraySize(currentTrades); i++)
+   {
+      if(currentTrades[i].ticket == ticket)
+      {
+         trackerIndex = i;
+         break;
+      }
+   }
+   
+   if(trackerIndex < 0)
+   {
+      Print("WARNING: No tracker found for closed trade: ", ticket);
+      return;
+   }
+   
+   if(!HistorySelectByPosition(ticket))
+   {
+      Print("ERROR: Cannot find trade in history: ", ticket);
+      return;
+   }
+   
+   int totalDeals = HistoryDealsTotal();
+   ulong closeDeal = 0;
+   double profit = 0;
+   double exitPrice = 0;
+   datetime exitTime = 0;
+   
+   for(int i = totalDeals - 1; i >= 0; i--)
+   {
+      closeDeal = HistoryDealGetTicket(i);
+      if(HistoryDealGetInteger(closeDeal, DEAL_POSITION_ID) == ticket &&
+         HistoryDealGetInteger(closeDeal, DEAL_ENTRY) == DEAL_ENTRY_OUT)
+      {
+         profit = HistoryDealGetDouble(closeDeal, DEAL_PROFIT);
+         exitPrice = HistoryDealGetDouble(closeDeal, DEAL_PRICE);
+         exitTime = (datetime)HistoryDealGetInteger(closeDeal, DEAL_TIME);
+         break;
+      }
+   }
+   
+   double exitQuality = 0, exitConfluence = 0;
+   if(InpUsePhysics && InpUseTickPhysicsIndicator)
+   {
+      double qBuf[1], cBuf[1];
+      if(CopyBuffer(indicatorHandle, BUFFER_QUALITY, 0, 1, qBuf) > 0) exitQuality = qBuf[0];
+      if(CopyBuffer(indicatorHandle, BUFFER_CONFLUENCE, 0, 1, cBuf) > 0) exitConfluence = cBuf[0];
+   }
+   
+   double profitPercent = (profit / AccountInfoDouble(ACCOUNT_EQUITY)) * 100.0;
+   
+   double pips = 0;
+   if(currentTrades[trackerIndex].type == ORDER_TYPE_BUY)
+      pips = (exitPrice - currentTrades[trackerIndex].openPrice) / SymbolInfoDouble(_Symbol, SYMBOL_POINT) / 10;
+   else
+      pips = (currentTrades[trackerIndex].openPrice - exitPrice) / SymbolInfoDouble(_Symbol, SYMBOL_POINT) / 10;
+   
+   int holdTimeBars = (int)((exitTime - currentTrades[trackerIndex].openTime) / PeriodSeconds(_Period));
+   
+   double mfePercent = 0, maePercent = 0, mfePips = 0, maePips = 0;
+   if(currentTrades[trackerIndex].type == ORDER_TYPE_BUY)
+   {
+      mfePercent = ((currentTrades[trackerIndex].mfe - currentTrades[trackerIndex].openPrice) / currentTrades[trackerIndex].openPrice) * 100.0;
+      maePercent = ((currentTrades[trackerIndex].mae - currentTrades[trackerIndex].openPrice) / currentTrades[trackerIndex].openPrice) * 100.0;
+      mfePips = (currentTrades[trackerIndex].mfe - currentTrades[trackerIndex].openPrice) / SymbolInfoDouble(_Symbol, SYMBOL_POINT) / 10;
+      maePips = (currentTrades[trackerIndex].mae - currentTrades[trackerIndex].openPrice) / SymbolInfoDouble(_Symbol, SYMBOL_POINT) / 10;
+   }
+   else
+   {
+      mfePercent = ((currentTrades[trackerIndex].openPrice - currentTrades[trackerIndex].mfe) / currentTrades[trackerIndex].openPrice) * 100.0;
+      maePercent = ((currentTrades[trackerIndex].openPrice - currentTrades[trackerIndex].mae) / currentTrades[trackerIndex].openPrice) * 100.0;
+      mfePips = (currentTrades[trackerIndex].openPrice - currentTrades[trackerIndex].mfe) / SymbolInfoDouble(_Symbol, SYMBOL_POINT) / 10;
+      maePips = (currentTrades[trackerIndex].openPrice - currentTrades[trackerIndex].mae) / SymbolInfoDouble(_Symbol, SYMBOL_POINT) / 10;
+   }
+   
+   double riskPercent = InpRiskPerTradePercent;
+   double rRatio = (riskPercent != 0) ? (profitPercent / riskPercent) : 0;
+   
+   MqlDateTime entryTime, closeTime;
+   TimeToStruct(currentTrades[trackerIndex].openTime, entryTime);
+   TimeToStruct(exitTime, closeTime);
+   
+   int handle = FileOpen(InpTradeLogFile, FILE_READ|FILE_WRITE|FILE_CSV|FILE_ANSI, ',');
+   if(handle == INVALID_HANDLE)
+   {
+      Print("ERROR: Could not open trade log file");
+      return;
+   }
+   
+   FileSeek(handle, 0, SEEK_END);
+   
+   FileWrite(handle,
+      TimeToString(currentTrades[trackerIndex].openTime), ticket, _Symbol, "CLOSE", 
+      (currentTrades[trackerIndex].type == ORDER_TYPE_BUY) ? "BUY" : "SELL",
+      currentTrades[trackerIndex].lots, currentTrades[trackerIndex].openPrice, currentTrades[trackerIndex].sl, currentTrades[trackerIndex].tp,
+      currentTrades[trackerIndex].entryQuality, currentTrades[trackerIndex].entryConfluence, currentTrades[trackerIndex].entryZone, currentTrades[trackerIndex].entryRegime, currentTrades[trackerIndex].entryEntropy,
+      currentTrades[trackerIndex].entryMAFast, currentTrades[trackerIndex].entryMASlow, currentTrades[trackerIndex].entrySpread,
+      exitPrice, exitReason, profit, profitPercent, pips,
+      exitQuality, exitConfluence, holdTimeBars,
+      currentTrades[trackerIndex].mfe, currentTrades[trackerIndex].mae, mfePercent, maePercent, mfePips, maePips,
+      riskPercent, rRatio,
+      entryTime.hour, entryTime.day_of_week, closeTime.hour
+   );
+   
+   FileClose(handle);
+   
+   Print("📝 Trade closed and logged: #", ticket, " Profit=", profit, " R=", rRatio);
+   
+   for(int i = trackerIndex; i < ArraySize(currentTrades) - 1; i++)
+   {
+      currentTrades[i] = currentTrades[i + 1];
+   }
+   ArrayResize(currentTrades, ArraySize(currentTrades) - 1);
+}
+
+//========================================================================//
+//===================== v5.0: ENHANCED SIGNAL LOGGING ====================//
+//========================================================================//
+
+void LogSignal(int signal, double quality, double confluence, double momentum,
+               double zone, double regime, double entropy,
+               bool physicsPass, string rejectReason)
+{
+   int handle = FileOpen(InpSignalLogFile, FILE_READ|FILE_WRITE|FILE_CSV|FILE_ANSI, ',');
+   if(handle == INVALID_HANDLE)
+   {
+      Print("ERROR: Could not open signal log file: ", InpSignalLogFile);
+      return;
+   }
+   
+   FileSeek(handle, 0, SEEK_END);
+   
+   double maFastEntry[1], maSlowEntry[1], maFastExit[1], maSlowExit[1];
+   CopyBuffer(maFastEntry_Handle, 0, 0, 1, maFastEntry);
+   CopyBuffer(maSlowEntry_Handle, 0, 0, 1, maSlowEntry);
+   CopyBuffer(maFastExit_Handle, 0, 0, 1, maFastExit);
+   CopyBuffer(maSlowExit_Handle, 0, 0, 1, maSlowExit);
+   
+   double price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double spread = 0;
+   CheckSpreadFilter(spread);
+   
+   MqlDateTime timeStruct;
+   TimeToStruct(TimeCurrent(), timeStruct);
+   
+   FileWrite(handle,
+      TimeToString(TimeCurrent()), 
+      signal,
+      (signal == 1) ? "BUY" : (signal == -1) ? "SELL" : "NONE",
+      maFastEntry[0], maSlowEntry[0], maFastExit[0], maSlowExit[0],
+      quality, confluence, momentum, zone, regime, entropy,
+      price, spread, timeStruct.hour, timeStruct.day_of_week,
+      (InpUsePhysics && InpUseTickPhysicsIndicator) ? "YES" : "NO",
+      physicsPass ? "PASS" : "REJECT",
+      rejectReason
+   );
+   
+   FileClose(handle);
+   
+   if(!physicsPass)
+   {
+      Print("📝 Signal logged: REJECTED - ", rejectReason);
+   }
+}
+
+//========================================================================//
+//=================== VALIDATE TRADE =====================================//
+//========================================================================//
+
+bool ValidateTrade(double sl, double tp, double lots)
+{
+   if(sl <= 0 || tp <= 0)
+   {
+      Print("❌ REJECTED: Invalid SL/TP: sl=", sl, " tp=", tp);
+      return false;
+   }
+   
+   double spread = 0;
+   if(!CheckSpreadFilter(spread))
+   {
+      return false;
+   }
+   
+   double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+   
+   if(lots < minLot)
+   {
+      Print("❌ REJECTED: Lot size too small: ", lots, " < ", minLot);
+      return false;
+   }
+   
+   if(lots > maxLot)
+   {
+      Print("❌ REJECTED: Lot size too large: ", lots, " > ", maxLot);
+      return false;
+   }
+   
+   return true;
+}
+
+//========================================================================//
+//=================== OPEN POSITION ======================================//
+//========================================================================//
+
+bool OpenPosition(ENUM_ORDER_TYPE orderType)
+{
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double price = (orderType == ORDER_TYPE_BUY) ? ask : bid;
+   
+   double sl, tp;
+   if(!ComputeSLTPFromPercent(price, orderType, InpStopLossPercent, InpTakeProfitPercent, sl, tp))
+   {
+      Print("❌ Failed to compute SL/TP");
+      return false;
+   }
+   
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   double riskMoney = equity * InpRiskPerTradePercent / 100.0;
+   double slDistance = MathAbs(price - sl);
+   double lots = CalculateLotSize(riskMoney, slDistance);
+   
+   if(lots <= 0)
+   {
+      Print("❌ Invalid lot size: ", lots);
+      return false;
+   }
+   
+   if(!ValidateTrade(sl, tp, lots))
+   {
+      return false;
+   }
+   
+   bool success = false;
+   if(orderType == ORDER_TYPE_BUY)
+   {
+      success = trade.Buy(lots, _Symbol, ask, sl, tp, "MA_Crossover_BUY");
+   }
+   else
+   {
+      success = trade.Sell(lots, _Symbol, bid, sl, tp, "MA_Crossover_SELL");
+   }
+   
+   if(success)
+   {
+      ulong ticket = trade.ResultOrder();
+      Print("✅ ", (orderType == ORDER_TYPE_BUY ? "BUY" : "SELL"), 
+            " opened: Ticket=", ticket, " Lots=", lots, " SL=", sl, " TP=", tp);
+      
+      double quality = 0, confluence = 0, zone = 0, regime = 0, entropy = 0;
+      if(InpUsePhysics && InpUseTickPhysicsIndicator)
+      {
+         double qBuf[1], cBuf[1], zBuf[1], rBuf[1], eBuf[1];
+         if(CopyBuffer(indicatorHandle, BUFFER_QUALITY, 0, 1, qBuf) > 0) quality = qBuf[0];
+         if(CopyBuffer(indicatorHandle, BUFFER_CONFLUENCE, 0, 1, cBuf) > 0) confluence = cBuf[0];
+         if(CopyBuffer(indicatorHandle, BUFFER_TRADING_ZONE, 0, 1, zBuf) > 0) zone = zBuf[0];
+         if(CopyBuffer(indicatorHandle, BUFFER_VOL_REGIME, 0, 1, rBuf) > 0) regime = rBuf[0];
+         if(CopyBuffer(indicatorHandle, BUFFER_ENTROPY, 0, 1, eBuf) > 0) entropy = eBuf[0];
+      }
+      
+      TrackNewTrade(ticket, quality, confluence, zone, regime, entropy);
+   }
+   else
+   {
+      Print("❌ Failed to open position: ", trade.ResultRetcodeDescription());
+   }
+   
+   return success;
+}
+
+//========================================================================//
+//=================== v5.0: TRACK NEW TRADE ==============================//
+//========================================================================//
+
+void TrackNewTrade(ulong ticket, double quality, double confluence, double zone,
+                   double regime, double entropy)
+{
+   if(ticket == 0) return;
+   
+   if(!PositionSelectByTicket(ticket))
+   {
+      Print("ERROR: Cannot select position for tracking: ", ticket);
+      return;
+   }
+   
+   int size = ArraySize(currentTrades);
+   ArrayResize(currentTrades, size + 1);
+   
+   currentTrades[size].ticket = ticket;
+   currentTrades[size].openTime = (datetime)PositionGetInteger(POSITION_TIME);
+   currentTrades[size].openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+   currentTrades[size].sl = PositionGetDouble(POSITION_SL);
+   currentTrades[size].tp = PositionGetDouble(POSITION_TP);
+   currentTrades[size].lots = PositionGetDouble(POSITION_VOLUME);
+   currentTrades[size].type = (ENUM_ORDER_TYPE)PositionGetInteger(POSITION_TYPE);
+   
+   currentTrades[size].entryQuality = quality;
+   currentTrades[size].entryConfluence = confluence;
+   currentTrades[size].entryZone = zone;
+   currentTrades[size].entryRegime = regime;
+   currentTrades[size].entryEntropy = entropy;
+   
+   double maFast[1], maSlow[1];
+   CopyBuffer(maFastEntry_Handle, 0, 0, 1, maFast);
+   CopyBuffer(maSlowEntry_Handle, 0, 0, 1, maSlow);
+   currentTrades[size].entryMAFast = maFast[0];
+   currentTrades[size].entryMASlow = maSlow[0];
+   
+   double spread = 0;
+   CheckSpreadFilter(spread);
+   currentTrades[size].entrySpread = spread;
+   
+   currentTrades[size].mfe = currentTrades[size].openPrice;
+   currentTrades[size].mae = currentTrades[size].openPrice;
+   
+   Print("✅ Trade tracked: #", ticket, " Quality=", quality, " Confluence=", confluence);
+}
+
+//========================================================================//
+//=================== v5.0: UPDATE MFE/MAE ===============================//
+//========================================================================//
+
+void UpdateMFEMAE()
+{
+   for(int i = 0; i < ArraySize(currentTrades); i++)
+   {
+      if(!PositionSelectByTicket(currentTrades[i].ticket))
+         continue;
+      
+      double currentPrice = (currentTrades[i].type == ORDER_TYPE_BUY) ?
+         SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      
+      if(currentTrades[i].type == ORDER_TYPE_BUY)
+      {
+         if(currentPrice > currentTrades[i].mfe)
+            currentTrades[i].mfe = currentPrice;
+         if(currentPrice < currentTrades[i].mae)
+            currentTrades[i].mae = currentPrice;
+      }
+      else
+      {
+         if(currentPrice < currentTrades[i].mfe)
+            currentTrades[i].mfe = currentPrice;
+         if(currentPrice > currentTrades[i].mae)
+            currentTrades[i].mae = currentPrice;
+      }
+   }
+}
+
+//============================= CHUNK 7: CSV INIT & DISPLAY ==============//
+
+//========================================================================//
+//=================== INITIALIZE SIGNAL LOG ==============================//
+//========================================================================//
+
+bool InitSignalLog()
+{
+   signalLogHandle = FileOpen(InpSignalLogFile, FILE_WRITE|FILE_CSV|FILE_ANSI, ',');
+   if(signalLogHandle == INVALID_HANDLE)
+   {
+      Print("Failed to create signal log: ", InpSignalLogFile);
+      return false;
+   }
+   
+   FileWrite(signalLogHandle, 
+      "Timestamp", "Signal", "SignalType",
+      "MA_Fast_Entry", "MA_Slow_Entry", "MA_Fast_Exit", "MA_Slow_Exit",
+      "Quality", "Confluence", "Momentum", "TradingZone", "VolRegime", "Entropy",
+      "Price", "Spread", "Hour", "DayOfWeek",
+      "PhysicsEnabled", "PhysicsPass", "RejectReason"
+   );
+   
+   FileClose(signalLogHandle);
+   return true;
+}
+
+//========================================================================//
+//=================== INITIALIZE TRADE LOG ===============================//
+//========================================================================//
+
+bool InitTradeLog()
+{
+   tradeLogHandle = FileOpen(InpTradeLogFile, FILE_WRITE|FILE_CSV|FILE_ANSI, ',');
+   if(tradeLogHandle == INVALID_HANDLE)
+   {
+      Print("Failed to create trade log: ", InpTradeLogFile);
+      return false;
+   }
+   
+   FileWrite(tradeLogHandle,
+      "Timestamp", "Ticket", "Symbol", "Action", "Type", 
+      "Lots", "EntryPrice", "SL", "TP",
+      "EntryQuality", "EntryConfluence", "EntryZone", "EntryRegime", "EntryEntropy",
+      "EntryMAFast", "EntryMASlow", "EntrySpread",
+      "ExitPrice", "ExitReason", "Profit", "ProfitPercent", "Pips",
+      "ExitQuality", "ExitConfluence", "HoldTimeBars",
+      "MFE", "MAE", "MFEPercent", "MAEPercent", "MFE_Pips", "MAE_Pips",
+      "RiskPercent", "RRatio",
+      "EntryHour", "EntryDayOfWeek", "ExitHour"
+   );
+   
+   FileClose(tradeLogHandle);
+   return true;
+}
+
+//========================================================================//
+//=================== UPDATE DISPLAY =====================================//
+//========================================================================//
+
+void UpdateDisplay(int signal, double quality, double confluence, 
+                   double tradingZone, double volRegime, double entropy)
+{
+   double maFastEntry[1], maSlowEntry[1], maFastExit[1], maSlowExit[1];
+   CopyBuffer(maFastEntry_Handle, 0, 0, 1, maFastEntry);
+   CopyBuffer(maSlowEntry_Handle, 0, 0, 1, maSlowEntry);
+   CopyBuffer(maFastExit_Handle, 0, 0, 1, maFastExit);
+   CopyBuffer(maSlowExit_Handle, 0, 0, 1, maSlowExit);
+   
+   string maEntryStatus = (maFastEntry[0] > maSlowEntry[0]) ? "🟢 BULLISH" : "🔴 BEARISH";
+   string maExitStatus = (maFastExit[0] > maSlowExit[0]) ? "🟢 ABOVE" : "🔴 BELOW";
+   
+   string modeStr = "";
+   if(!InpUsePhysics && !InpUseTickPhysicsIndicator)
+      modeStr = "MA Crossover ONLY (Baseline)";
+   else if(InpUsePhysics && InpUseTickPhysicsIndicator)
+      modeStr = "MA Crossover + Physics Filters";
+   else
+      modeStr = "Hybrid Mode";
+   
+   string zoneStr = (tradingZone == 0) ? "🟢 BULL" :
+                    (tradingZone == 1) ? "🔴 BEAR" :
+                    (tradingZone == 2) ? "🟡 TRANS" : "⚫ AVOID";
+   
+   string signalStr = (signal == 1) ? "🟢 BUY SIGNAL" :
+                      (signal == -1) ? "🔴 SELL SIGNAL" : "⚪ NO SIGNAL";
+   
+   string filterStatus = (InpUsePhysics) ? "✅ ON" : "❌ OFF";
+   
+   double currentPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double dailyPnL = GetDailyPnL();
+   
+   Comment(StringFormat(
+      "╔═════════════════════════════════════════════════╗\n"
+      "║  %s v%s  ║\n"
+      "║  MODE: %-36s  ║\n"
+      "╠═════════════════════════════════════════════════╣\n"
+      "║  📊 MA CROSSOVER STATUS                         ║\n"
+      "║  Entry:  %-37s  ║\n"
+      "║  Exit:   %-37s  ║\n"
+      "║  Signal: %-37s  ║\n"
+      "╠═════════════════════════════════════════════════╣\n"
+      "║  ⚙️  CONFIGURATION                               ║\n"
+      "║  Physics Filters:  %-27s  ║\n"
+      "║  TickPhysics Ind:  %-27s  ║\n"
+      "║  Entropy Filter:   %-27s  ║\n"
+      "║  Zone Filter:      %-27s  ║\n"
+      "║  Regime Filter:    %-27s  ║\n"
+      "║  Session Filter:   %-27s  ║\n"
+      "║  Daily Limits:     %-27s  ║\n"
+      "╠═════════════════════════════════════════════════╣\n"
+      "║  💰 TRADING STATUS                              ║\n"
+      "║  Price:           $%-28.2f  ║\n"
+      "║  Positions:       %-2d / %-2d                    ║\n"
+      "║  Daily P/L:       %-7.2f%%                     ║\n"
+      "║  Daily Trades:    %-3d                          ║\n"
+      "║  Consec Losses:   %-2d                           ║\n"
+      "║  Status:          %-28s  ║\n"
+      "╠═════════════════════════════════════════════════╣\n"
+      "║  📈 PHYSICS METRICS (if enabled)                ║\n"
+      "║  Quality:    %-6.1f  |  Confluence: %-6.1f    ║\n"
+      "║  Zone:       %-28s  ║\n"
+      "║  Entropy:    %-7.2f  %-20s  ║\n"
+      "╚═════════════════════════════════════════════════╝",
+      EA_NAME, EA_VERSION,
+      modeStr,
+      maEntryStatus,
+      maExitStatus,
+      signalStr,
+      filterStatus,
+      (InpUseTickPhysicsIndicator ? "✅ ON" : "❌ OFF"),
+      (InpUseEntropyFilter ? "✅ ON" : "❌ OFF"),
+      (InpRequireGreenZone ? "✅ ON" : "❌ OFF"),
+      (InpTradeOnlyNormalRegime ? "✅ ON" : "❌ OFF"),
+      (InpUseSessionFilter ? "✅ ON" : "❌ OFF"),
+      (InpPauseOnLimits ? "✅ ON" : "❌ OFF"),
+      currentPrice,
+      CountPositions(), InpMaxPositions,
+      dailyPnL,
+      dailyTradeCount,
+      consecutiveLosses,
+      (dailyPaused ? "⏸️ PAUSED" : "✅ ACTIVE"),
+      quality, confluence,
+      zoneStr,
+      entropy, 
+      (entropy > InpMaxEntropy ? "(🔴 CHAOS)" : entropy > InpMaxEntropy * 0.7 ? "(🟡 NOISY)" : "(🟢 CLEAN)")
+   ));
+}
+
+//============================= CHUNK 8: MAIN EVENT FUNCTIONS ============//
+
+//========================================================================//
+//=================== OnInit() ===========================================//
+//========================================================================//
+
+int OnInit()
+{
+   Print("═══════════════════════════════════════════════════════");
+   Print("🚀 Initializing ", EA_NAME, " v", EA_VERSION);
+   Print("═══════════════════════════════════════════════════════");
+   
+   maFastEntry_Handle = iMA(_Symbol, _Period, InpMAFast_Entry, 0, InpMAMethod, InpMAPrice);
+   maSlowEntry_Handle = iMA(_Symbol, _Period, InpMASlow_Entry, 0, InpMAMethod, InpMAPrice);
+   
+   if(maFastEntry_Handle == INVALID_HANDLE || maSlowEntry_Handle == INVALID_HANDLE)
+   {
+      Print("❌ ERROR: Failed to create Entry MA indicators");
+      return INIT_FAILED;
+   }
+   
+   if(InpUseMAExit)
+   {
+      maFastExit_Handle = iMA(_Symbol, _Period, InpMAFast_Exit, 0, InpMAMethod, InpMAPrice);
+      maSlowExit_Handle = iMA(_Symbol, _Period, InpMASlow_Exit, 0, InpMAMethod, InpMAPrice);
+      
+      if(maFastExit_Handle == INVALID_HANDLE || maSlowExit_Handle == INVALID_HANDLE)
+      {
+         Print("❌ ERROR: Failed to create Exit MA indicators");
+         return INIT_FAILED;
+      }
+   }
+   
+   if(InpUseTickPhysicsIndicator)
+   {
+      indicatorHandle = iCustom(_Symbol, _Period, InpIndicatorName);
+      
+      if(indicatorHandle == INVALID_HANDLE)
+      {
+         Print("⚠️ WARNING: TickPhysics indicator not found!");
+         Print("   Indicator name: ", InpIndicatorName);
+         Print("   Physics filters will be disabled");
+      }
+      else
+      {
+         Print("✅ TickPhysics indicator loaded successfully");
+      }
+   }
+   
+   if(InpEnableSignalLog)
+   {
+      if(!InitSignalLog())
+      {
+         Print("⚠️ WARNING: Signal log initialization failed");
+      }
+      else
+      {
+         Print("✅ Signal log initialized: ", InpSignalLogFile);
+      }
+   }
+   
+   if(InpEnableTradeLog)
+   {
+      if(!InitTradeLog())
+      {
+         Print("⚠️ WARNING: Trade log initialization failed");
+      }
+      else
+      {
+         Print("✅ Trade log initialized: ", InpTradeLogFile);
+      }
+   }
+   
+   dailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+   lastDayCheck = TimeCurrent();
+   
+   Print("═══════════════════════════════════════════════════════");
+   Print("⚙️  CONFIGURATION:");
+   Print("   MA Entry: ", InpMAFast_Entry, "/", InpMASlow_Entry);
+   Print("   MA Exit: ", InpMAFast_Exit, "/", InpMASlow_Exit);
+   Print("   Risk: ", InpRiskPerTradePercent, "%");
+   Print("   SL: ", InpStopLossPercent, "% | TP: ", InpTakeProfitPercent, "%");
+   Print("   Physics: ", (InpUsePhysics ? "ENABLED" : "DISABLED"));
+   Print("   Indicator: ", (InpUseTickPhysicsIndicator ? "ENABLED" : "DISABLED"));
+   Print("   Max Spread: ", InpMaxSpread, " points");
+   Print("═══════════════════════════════════════════════════════");
+   Print("✅ EA initialized successfully - Ready to trade!");
+   Print("═══════════════════════════════════════════════════════");
+   
+   return INIT_SUCCEEDED;
+}
+
+//========================================================================//
+//=================== OnDeinit() =========================================//
+//========================================================================//
+
+void OnDeinit(const int reason)
+{
+   Print("═══════════════════════════════════════════════════════");
+   Print("🛑 Shutting down ", EA_NAME, " v", EA_VERSION);
+   Print("   Reason: ", reason);
+   
+   if(maFastEntry_Handle != INVALID_HANDLE) IndicatorRelease(maFastEntry_Handle);
+   if(maSlowEntry_Handle != INVALID_HANDLE) IndicatorRelease(maSlowEntry_Handle);
+   if(maFastExit_Handle != INVALID_HANDLE) IndicatorRelease(maFastExit_Handle);
+   if(maSlowExit_Handle != INVALID_HANDLE) IndicatorRelease(maSlowExit_Handle);
+   if(indicatorHandle != INVALID_HANDLE) IndicatorRelease(indicatorHandle);
+   
+   Print("   Total daily trades: ", dailyTradeCount);
+   Print("   Daily P/L: ", GetDailyPnL(), "%");
+   
+   Print("═══════════════════════════════════════════════════════");
+   Print("✅ EA shutdown complete");
+   Print("═══════════════════════════════════════════════════════");
+   
+   Comment("");
+}
+
+//========================================================================//
+//=================== OnTick() - v5.7 FIXED LOGIC ========================//
+//========================================================================//
+// ✅ v5.7: COMPLETE ENTRY/EXIT LOGIC FIX
+// 1. Get current signal (1=BUY, -1=SELL, 0=none)
+// 2. ManagePositions() - Closes positions on exit signal
+// 3. Check if we can enter the new signal direction
+// 4. Enter ONLY if no opposite direction already open
+//========================================================================//
+
+void OnTick()
+{
+   lastTickTime = TimeCurrent();
+   
+   datetime currentBarTime = iTime(_Symbol, _Period, 0);
+   if(currentBarTime == lastBarTime)
+      return;
+   lastBarTime = currentBarTime;
+   
+   CheckDailyReset();
+   
+   if(dailyPaused)
+   {
+      Comment("⏸️ EA PAUSED - Daily limits reached\n",
+              "Daily P/L: ", DoubleToString(GetDailyPnL(), 2), "%\n",
+              "Resets at midnight");
+      return;
+   }
+   
+   if(InpUseSessionFilter && !IsWithinSession())
+      return;
+   
+   // ========================================================================
+   // STEP 1: Get the current signal and physics metrics
+   // ========================================================================
+   int signal = GetMACrossoverSignal();
+   
+   if(InpEnableDebug)
+      Print("🔍 DEBUG: OnTick() START - Signal=", signal);
+   
+   double quality = 0.0, confluence = 0.0, momentum = 0.0;
+   double tradingZone = 0.0, volRegime = 0.0, entropy = 0.0;
+   
+   if(InpUsePhysics && InpUseTickPhysicsIndicator)
+   {
+      double qualityBuf[1], confluenceBuf[1], momentumBuf[1], zoneBuf[1], regimeBuf[1], entropyBuf[1];
+      if(CopyBuffer(indicatorHandle, BUFFER_QUALITY, 0, 1, qualityBuf) > 0)
+         quality = qualityBuf[0];
+      if(CopyBuffer(indicatorHandle, BUFFER_CONFLUENCE, 0, 1, confluenceBuf) > 0)
+         confluence = confluenceBuf[0];
+      if(CopyBuffer(indicatorHandle, BUFFER_MOMENTUM, 0, 1, momentumBuf) > 0)
+         momentum = momentumBuf[0];
+      if(CopyBuffer(indicatorHandle, BUFFER_TRADING_ZONE, 0, 1, zoneBuf) > 0)
+         tradingZone = zoneBuf[0];
+      if(CopyBuffer(indicatorHandle, BUFFER_VOL_REGIME, 0, 1, regimeBuf) > 0)
+         volRegime = regimeBuf[0];
+      if(CopyBuffer(indicatorHandle, BUFFER_ENTROPY, 0, 1, entropyBuf) > 0)
+         entropy = entropyBuf[0];
+   }
+   
+   string rejectReason = "";
+   bool physicsPass = CheckPhysicsFilters(signal, quality, confluence, tradingZone, 
+                                          volRegime, entropy, rejectReason);
+   
+   if(InpEnableSignalLog && signal != 0)
+   {
+      LogSignal(signal, quality, confluence, momentum, tradingZone, volRegime, entropy, 
+                physicsPass, rejectReason);
+   }
+   
+   // ========================================================================
+   // STEP 2: MANAGE POSITIONS FIRST (exits before new entries)
+   // This is critical for proper reverse entry logic
+   // ========================================================================
+   if(InpEnableDebug)
+      Print("🔍 DEBUG: Calling ManagePositions()");
+   
+   ManagePositions();
+   
+   // ========================================================================
+   // STEP 3: After positions managed, attempt entry based on signal
+   // ========================================================================
+   int currentPositions = CountPositions();
+   
+   if(InpEnableDebug)
+      Print("🔍 DEBUG: After ManagePositions() - Positions=", currentPositions);
+   
+   if(signal != 0)
+   {
+      ENUM_ORDER_TYPE orderType = (signal == 1) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+      ENUM_ORDER_TYPE oppositeType = GetOppositeOrderType(orderType);
+      
+      // Check conditions before entry
+      bool hasOppositePosition = HasOpenPositionInDirection(oppositeType);
+      
+      if(InpEnableDebug)
+      {
+         Print("   Signal Direction: ", (orderType == ORDER_TYPE_BUY ? "BUY" : "SELL"));
+         Print("   Has Opposite Position: ", hasOppositePosition ? "YES" : "NO");
+         Print("   Current Positions: ", currentPositions, "/", InpMaxPositions);
+      }
+      
+      if(hasOppositePosition)
+      {
+         if(InpEnableDebug)
+            Print("❌ DEBUG: Entry blocked - Opposite position already open");
+      }
+      else if(currentPositions >= InpMaxPositions)
+      {
+         if(InpEnableDebug)
+            Print("❌ DEBUG: Entry blocked - Max positions (", currentPositions, "/", InpMaxPositions, ")");
+      }
+      else if(consecutiveLosses >= InpMaxConsecutiveLosses)
+      {
+         if(InpEnableDebug)
+            Print("❌ DEBUG: Entry blocked - Max losses (", consecutiveLosses, "/", InpMaxConsecutiveLosses, ")");
+      }
+      else if(!physicsPass)
+      {
+         if(InpEnableDebug)
+            Print("❌ DEBUG: Entry blocked by physics: ", rejectReason);
+      }
+      else
+      {
+         if(InpEnableDebug)
+            Print("✅ DEBUG: Opening ", (orderType == ORDER_TYPE_BUY ? "BUY" : "SELL"));
+         
+         if(OpenPosition(orderType))
+         {
+            dailyTradeCount++;
+         }
+      }
+   }
+   
+   UpdateDisplay(signal, quality, confluence, tradingZone, volRegime, entropy);
+}
+
+//========================================================================//
+//=================== END OF v5.7 EA =====================================//
+//========================================================================//
+
+/*
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║  TickPhysics EA v5.7 - CRITICAL ENTRY/EXIT FIXES FROM v5.6           ║
+║                                                                      ║
+║  ✅ BUGS FIXED:                                                      ║
+║  1. ManagePositions() exit logic was INVERTED                        ║
+║     - Now correctly closes SAME-direction positions on exit signal   ║
+║  2. CheckExitSignal() renamed to GetPositionTypeToClose()            ║
+║     - Clearer semantics: returns what TYPE to close                  ║
+║  3. Added HasOpenPositionInDirection() helper                        ║
+║     - Prevents conflicting opposite positions                        ║
+║  4. Added GetOppositeOrderType() helper                              ║
+║     - Cleaner logic for direction validation                         ║
+║  5. OnTick() now validates no-opposite-position BEFORE entry         ║
+║     - Prevents duplicate conflicting orders                          ║
+║                                                                      ║
+║  CRITICAL FIXES EXPLANATION:                                         ║
+║  ══════════════════════════════════════════════════════════════════  ║
+║  v5.6 BUG #1: ManagePositions() Exit Logic                           ║
+║  ────────────────────────────────────────────────────────────────   ║
+║  When Fast<Slow (bullish trend ends):                                ║
+║    - Should: Close BUY positions                                     ║
+║    - v5.6:   Closed SELL positions (WRONG!)                          ║
+║  FIX: Now returns position TYPE to close, not opposite type          ║
+║                                                                      ║
+║  v5.6 BUG #2: No Duplicate Entry Protection                          ║
+║  ────────────────────────────────────────────────────────────────   ║
+║  If BUY signal comes in while SELL position open:                    ║
+║    - v5.6: Would open another BUY (conflicting!)                     ║
+║    - v5.7: Checks HasOpenPositionInDirection() first                 ║
+║                                                                      ║
+║  TESTING SEQUENCE:                                                   ║
+║  1. Compile v5.7 (should have 0 errors)                              ║
+║  2. Set InpEnableDebug = true                                        ║
+║  3. Backtest 5 bars with crossovers                                  ║
+║  4. Verify debug logs show correct entry/exit                        ║
+║  5. Watch for: "Entry blocked - Opposite position already open"      ║
+║  6. Verify positions reverse correctly on exit signal                ║
+║  7. Run full backtest 3+ months                                      ║
+║  8. Set InpEnableDebug = false for live                              ║
+║                                                                      ║
+║  EXPECTED BEHAVIOR:                                                  ║
+║  ──────────────────────────────────────────────────────────────────  ║
+║  Fast > Slow → BUY signal (if no opposite open)                      ║
+║  Fast < Slow → SELL signal (if no opposite open)                     ║
+║  Exit signal → Close same-direction positions                        ║
+║  Then next bar if new signal → Enter opposite direction              ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+*/

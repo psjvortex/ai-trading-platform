@@ -1,0 +1,155 @@
+services:
+  db:
+    image: timescale/timescaledb:pg16-latest
+    environment:
+      POSTGRES_USER: trader
+      POSTGRES_PASSWORD: trader
+      POSTGRES_DB: trading
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  api:
+    build: ./backend
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - ./.env
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+      - "5678:5678"
+    depends_on:
+      - db
+
+  web:
+    build: ./web
+    env_file:
+      - ./.env
+      - ./web/.env
+    volumes:
+      - ./web:/app
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+  # OpenTelemetry Collector for traces/metrics reception and export
+  otelcol:
+    image: otel/opentelemetry-collector:0.103.1
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/otelcol/config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus exporter (collector metrics)
+      - "13133:13133" # Health check
+    depends_on:
+      - api
+      - tempo
+      - jaeger
+      - loki
+
+  # Optional: Prometheus for metrics scraping
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+      - otelcol
+      - alertmanager
+
+  # Alertmanager for Prometheus alerts
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    volumes:
+      - ./infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+
+  # A simple webhook to receive alerts in dev (logs requests)
+  alert-webhook:
+    image: jmalloc/echo-server:0.3.5
+    ports:
+      - "8070:8080"
+
+  # Optional: Grafana for dashboards
+  grafana:
+    image: grafana/grafana:10.4.2
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+
+  # Grafana Tempo for tracing backend
+  tempo:
+    image: grafana/tempo:2.5.0
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./infra/tempo/config.yaml:/etc/tempo/config.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+    # 4317/4318 exposed internally for OTLP ingest
+
+  # Optional: Jaeger all-in-one for UI/debug
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+    # 4317 exposed internally for OTLP gRPC ingest
+
+  # Loki for logs storage
+  loki:
+    image: grafana/loki:2.9.7
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./infra/loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
+  # Promtail to collect container logs and ship to Loki
+  promtail:
+    image: grafana/promtail:2.9.7
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./infra/promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+
+volumes:
+  db_data:
+  prometheus_data:
+  grafana_data:
+  tempo_data:
+  loki_data:

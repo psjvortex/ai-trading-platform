@@ -1,0 +1,14 @@
+{
+  "total_trades": 134,
+  "overall_win_rate": 0.4253731343283582,
+  "total_profit": 76.38,
+  "avg_profit_per_trade": 0.57,
+  "top_profit_predictor": {
+    "metric": "Acceleration",
+    "correlation": 0.25772170665586835
+  },
+  "top_winrate_predictor": {
+    "metric": "Acceleration",
+    "correlation": 0.2790766585601516
+  }
+}

@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate changelog excerpt
+        id: changelog
+        run: |
+          awk 'BEGIN{print "## Release Notes\n"} /^## \[/ {exit} {print}' CHANGELOG.md > RELEASE_NOTES.md || true
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload docs snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-docs
+          path: |
+            docs/**
+            README.md
+            CHANGELOG.md

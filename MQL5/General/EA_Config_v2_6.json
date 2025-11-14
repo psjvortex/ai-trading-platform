@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "config_version": "2.6.0",
+    "last_updated": "2025-01-15T00:00:00Z",
+    "update_trigger": "manual",
+    "optimization_cycle": 1,
+    "total_trades_analyzed": 0,
+    "notes": "Initial configuration based on v2.5 analysis"
+  },
+  
+  "risk_management": {
+    "risk_percent_per_trade": 1.0,
+    "max_daily_risk": 3.0,
+    "max_concurrent_trades": 3,
+    "min_r_ratio": 1.5,
+    "stop_loss_pips": 50,
+    "take_profit_pips": 100
+  },
+  
+  "entry_system": {
+    "use_physics_entry": false,
+    "use_ma_entry": true,
+    "ma_fast_period": 10,
+    "ma_slow_period": 50,
+    "ma_method": "EMA",
+    "ma_price": "CLOSE"
+  },
+  
+  "physics_filters": {
+    "enabled": true,
+    "min_quality": 70.0,
+    "min_confluence": 70.0,
+    "zone_filter_enabled": true,
+    "regime_filter_enabled": true,
+    "blocked_zones": ["BEAR"],
+    "blocked_regimes": ["LOW"],
+    "reasoning": "v2.5 analysis showed BEAR zone and LOW regime had poor performance"
+  },
+  
+  "time_filters": {
+    "enabled": true,
+    "allowed_hours": [11, 13, 14, 18, 20, 21],
+    "blocked_hours": [1, 12, 15],
+    "day_filter_enabled": true,
+    "blocked_days": [3],
+    "day_names": {
+      "0": "Sunday",
+      "1": "Monday", 
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "reasoning": "v2.5 analysis: Wednesday had 25.7% WR, hours 11,13,14,18,20,21 performed best"
+  },
+  
+  "monitoring": {
+    "post_exit_monitor_bars": 50,
+    "enable_realtime_logging": true,
+    "enable_debug_mode": true
+  },
+  
+  "learning_parameters": {
+    "auto_update_enabled": false,
+    "min_trades_for_update": 100,
+    "update_frequency_trades": 50,
+    "min_win_rate_threshold": 0.40,
+    "min_profit_factor_threshold": 1.2,
+    "performance_window_trades": 100,
+    "confidence_threshold": 0.95
+  },
+  
+  "performance_thresholds": {
+    "acceptable_win_rate": 0.40,
+    "target_win_rate": 0.50,
+    "acceptable_profit_factor": 1.2,
+    "target_profit_factor": 1.5,
+    "max_drawdown_percent": 15.0,
+    "min_trades_per_week": 5
+  },
+  
+  "optimization_history": [
+    {
+      "version": "2.5",
+      "date": "2025-01-10",
+      "total_trades": 455,
+      "win_rate": 0.396,
+      "profit_factor": 1.23,
+      "net_profit": 1234.56,
+      "changes": "Added zone filter (avoid BEAR), regime filter (avoid LOW)",
+      "result": "Baseline with physics filters"
+    },
+    {
+      "version": "2.6",
+      "date": "2025-01-15",
+      "total_trades": 0,
+      "win_rate": null,
+      "profit_factor": null,
+      "net_profit": null,
+      "changes": "Added time-of-day filter (hours 11,13,14,18,20,21), blocked Wednesday",
+      "result": "Pending backtest"
+    }
+  ]
+}

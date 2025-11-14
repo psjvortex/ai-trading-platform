@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TickPhysics Multi-Asset Validation Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 100%);
+            color: #ffffff;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #00d4ff 0%, #9d4edd 100%);
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.3);
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .subtitle {
+            font-size: 1.3em;
+            opacity: 0.95;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            border: 2px solid #00d4ff;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.5);
+        }
+
+        .stat-card.win {
+            border-color: #6bcf7f;
+            box-shadow: 0 5px 20px rgba(107, 207, 127, 0.2);
+        }
+
+        .stat-card.win:hover {
+            box-shadow: 0 10px 30px rgba(107, 207, 127, 0.5);
+        }
+
+        .stat-card.speed {
+            border-color: #ffd93d;
+            box-shadow: 0 5px 20px rgba(255, 217, 61, 0.2);
+        }
+
+        .stat-card.speed:hover {
+            box-shadow: 0 10px 30px rgba(255, 217, 61, 0.5);
+        }
+
+        .stat-card.conf {
+            border-color: #9d4edd;
+            box-shadow: 0 5px 20px rgba(157, 78, 221, 0.2);
+        }
+
+        .stat-card.conf:hover {
+            box-shadow: 0 10px 30px rgba(157, 78, 221, 0.5);
+        }
+
+        .stat-label {
+            font-size: 1em;
+            color: #aaaaaa;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 3em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #00d4ff 0%, #9d4edd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-card.win .stat-value {
+            background: linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-card.speed .stat-value {
+            background: linear-gradient(135deg, #ffd93d 0%, #ff6b6b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-card.conf .stat-value {
+            background: linear-gradient(135deg, #9d4edd 0%, #e056fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-subtext {
+            font-size: 0.9em;
+            color: #888888;
+            margin-top: 5px;
+        }
+
+        .section {
+            background: rgba(45, 45, 68, 0.6);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid #404040;
+        }
+
+        h2 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #00d4ff;
+            border-bottom: 2px solid #00d4ff;
+            padding-bottom: 10px;
+        }
+
+        .visualization {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid #333333;
+        }
+
+        .visualization img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .visualization h3 {
+            color: #ffd93d;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .key-findings {
+            background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
+            border-left: 5px solid #6bcf7f;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+
+        .key-findings h3 {
+            color: #6bcf7f;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .key-findings ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .key-findings li {
+            padding: 12px 0;
+            border-bottom: 1px solid #404040;
+            font-size: 1.1em;
+        }
+
+        .key-findings li:last-child {
+            border-bottom: none;
+        }
+
+        .key-findings li::before {
+            content: "✓";
+            color: #6bcf7f;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 1.3em;
+        }
+
+        .recommendations {
+            background: linear-gradient(135deg, #9d4edd 0%, #6d28d9 100%);
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(157, 78, 221, 0.4);
+        }
+
+        .recommendations h3 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .recommendations ol {
+            padding-left: 25px;
+            font-size: 1.1em;
+            line-height: 1.8;
+        }
+
+        .recommendations li {
+            margin-bottom: 15px;
+        }
+
+        .recommendations strong {
+            color: #ffd93d;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px;
+            border-top: 2px solid #404040;
+            color: #888888;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+            .stat-value {
+                font-size: 2em;
+            }
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin: 5px;
+        }
+
+        .badge.success {
+            background: #6bcf7f;
+            color: #000;
+        }
+
+        .badge.warning {
+            background: #ffd93d;
+            color: #000;
+        }
+
+        .badge.info {
+            background: #00d4ff;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 TickPhysics Multi-Asset Validation</h1>
+            <p class="subtitle">Evidence-Based Signal Optimization Across 2,703 Trades</p>
+            <p style="margin-top: 10px; opacity: 0.9;">
+                <span class="badge info">6 Assets</span>
+                <span class="badge success">2,703 Trades</span>
+                <span class="badge warning">270 Correlations</span>
+            </p>
+        </header>
+
+        <!-- Hero Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Trades Analyzed</div>
+                <div class="stat-value">2,703</div>
+                <div class="stat-subtext">Across 6 diverse assets</div>
+            </div>
+            <div class="stat-card win">
+                <div class="stat-label">Physics Score Impact</div>
+                <div class="stat-value">+16%</div>
+                <div class="stat-subtext">Q3 vs Q1 win rate improvement</div>
+            </div>
+            <div class="stat-card speed">
+                <div class="stat-label">#1 Universal Predictor</div>
+                <div class="stat-value">Speed</div>
+                <div class="stat-subtext">100% coverage (6/6 datasets)</div>
+            </div>
+            <div class="stat-card conf">
+                <div class="stat-label">Confluence 100% Boost</div>
+                <div class="stat-value">+11.5%</div>
+                <div class="stat-subtext">Win rate: 46.7% vs 35.2%</div>
+            </div>
+        </div>
+
+        <!-- Key Findings -->
+        <div class="section key-findings">
+            <h3>🎯 Critical Discoveries</h3>
+            <ul>
+                <li><strong>Speed is #1 Universal Predictor</strong> - 100% coverage across ALL assets (previously thought Acceleration)</li>
+                <li><strong>Physics Score Q3 Optimal</strong> - Range 55-85 achieves 48.5% win rate vs 32.4% in Q1 (+16.1%)</li>
+                <li><strong>Confluence 100% is Universal</strong> - Works in ALL 6 datasets with +11.5% win rate improvement</li>
+                <li><strong>Indices Outperform Forex</strong> - 43.5% vs 38.2% average win rate (701 vs 2,002 trades)</li>
+                <li><strong>Evidence-Based Weights Validated</strong> - Acceleration still strong at 83% coverage (5/6 datasets)</li>
+            </ul>
+        </div>
+
+        <!-- Visualizations -->
+        <div class="section">
+            <h2>📊 Performance Analysis</h2>
+            
+            <div class="visualization">
+                <h3>Physics Score Quartile Performance</h3>
+                <p style="color: #aaa; margin-bottom: 15px;">Q3 (55-85 range) consistently delivers best win rates</p>
+                <img src="physics_score_quartile_performance.png" alt="Physics Score Quartile Analysis">
+            </div>
+
+            <div class="grid-2">
+                <div class="visualization">
+                    <h3>Asset Class Comparison</h3>
+                    <img src="asset_class_comparison.png" alt="Asset Class Performance">
+                </div>
+                <div class="visualization">
+                    <h3>Dataset Performance Ranking</h3>
+                    <img src="dataset_performance_ranking.png" alt="Dataset Rankings">
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔬 Signal Validation</h2>
+            
+            <div class="visualization">
+                <h3>Confluence Impact: 100% vs 80%</h3>
+                <p style="color: #aaa; margin-bottom: 15px;">100% Confluence wins in ALL 6 datasets</p>
+                <img src="confluence_impact_comparison.png" alt="Confluence Impact">
+            </div>
+
+            <div class="visualization">
+                <h3>Physics Metrics Correlation Matrix</h3>
+                <p style="color: #aaa; margin-bottom: 15px;">Speed and Acceleration show strongest win correlations</p>
+                <img src="physics_correlation_heatmap.png" alt="Correlation Heatmap">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📈 Distribution Analysis</h2>
+            
+            <div class="visualization">
+                <h3>Physics Score Distributions Across Assets</h3>
+                <p style="color: #aaa; margin-bottom: 15px;">Consistent normal distributions validate scoring system</p>
+                <img src="physics_score_distributions.png" alt="Physics Score Distributions">
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="recommendations">
+            <h3>💡 Recommended Optimizations for v4.2</h3>
+            <ol>
+                <li><strong>Increase Speed Weight:</strong> From 20% (1H) / 18% (5M) to ~25-30% based on 100% coverage finding</li>
+                <li><strong>Maintain Acceleration Priority:</strong> Keep 30-35% weight (83% coverage, +0.138 win correlation)</li>
+                <li><strong>Add MinPhysicsScore Filter:</strong> Set threshold at 55-60 to enforce Q3 entry standards</li>
+                <li><strong>Require 100% Confluence:</strong> Implement strict confluence requirement for +11.5% win boost</li>
+                <li><strong>Increase Confluence Weight:</strong> Boost from 10-12% to 15-18% based on 67% coverage (+0.146 win corr)</li>
+                <li><strong>Focus on Indices Initially:</strong> Deploy first on NAS100/US30 given 43.5% vs 38.2% performance edge</li>
+            </ol>
+        </div>
+
+        <footer>
+            <p><strong>TickPhysics Multi-Asset Validation Dashboard</strong></p>
+            <p>Generated: November 12, 2025 | Total Datasets: 6 | Total Trades: 2,703</p>
+            <p style="margin-top: 10px; color: #666;">
+                Assets: NAS100 (5M, 15M) • US30 (5M) • EURUSD (5M) • USDJPY (5M) • AUDUSD (5M)
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

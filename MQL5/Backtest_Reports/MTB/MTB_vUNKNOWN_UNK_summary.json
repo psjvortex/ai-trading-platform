@@ -1,0 +1,20 @@
+{
+  "symbol": "MTB",
+  "version": "UNKNOWN",
+  "timeframe": "UNK",
+  "source_file": "/Users/patjohnston/Desktop/MT5 Backtest CSV's/MTBacktest_Report_3.2_05M.csv",
+  "normalized_file": "MQL5/Backtest_Reports/MTB/TP_Integrated_MTBacktest_Report_MTB_UNKNOWN_UNK.csv",
+  "mt5_metrics": {
+    "error": "required columns missing"
+  },
+  "trades_metrics": {},
+  "signals_metrics": {},
+  "primary_metrics": {
+    "error": "required columns missing"
+  },
+  "gates": {
+    "trades_gate": false,
+    "winrate_gate": false,
+    "pf_gate": false
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "symbol": "BTCUSD",
+  "version": "3.0",
+  "timeframe": "05M",
+  "source_file": "/Users/patjohnston/Desktop/MT5 Backtest CSV's/TP_Integrated_MTBacktest_BITCOIN_05M_v3.0.csv",
+  "normalized_file": "MQL5/Backtest_Reports/BTCUSD/TP_Integrated_MTBacktest_Report_BTCUSD_3.0_05M.csv",
+  "mt5_metrics": {
+    "trade_count": 1362,
+    "gross_profit": 2919.44,
+    "gross_loss": 3918.31,
+    "win_rate_percent": 22.98,
+    "profit_factor": 0.745,
+    "average_win": 9.3273,
+    "average_loss": -3.7353,
+    "header_mismatch": false
+  },
+  "trades_metrics": {
+    "trade_count": 1362,
+    "win_rate_percent": 22.98,
+    "profit_factor": 0.745,
+    "gross_profit": 2919.44,
+    "gross_loss": 3918.31,
+    "average_win": 9.3273,
+    "average_loss": -3.7353,
+    "exit_reasons": {
+      "EA": 1362
+    }
+  },
+  "signals_metrics": {
+    "signal_count": 75839,
+    "signal_distribution": {}
+  },
+  "primary_metrics": {
+    "trade_count": 1362,
+    "win_rate_percent": 22.98,
+    "profit_factor": 0.745,
+    "gross_profit": 2919.44,
+    "gross_loss": 3918.31,
+    "average_win": 9.3273,
+    "average_loss": -3.7353,
+    "exit_reasons": {
+      "EA": 1362
+    }
+  },
+  "gates": {
+    "trades_gate": true,
+    "winrate_gate": false,
+    "pf_gate": false
+  }
+}

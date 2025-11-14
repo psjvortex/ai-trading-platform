@@ -1,0 +1,4 @@
+# Python dependencies for TickPhysics Analytics and Dashboard
+pandas>=2.0.0
+plotly>=5.14.0
+dash>=2.9.0

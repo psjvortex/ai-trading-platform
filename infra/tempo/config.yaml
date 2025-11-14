@@ -1,0 +1,37 @@
+server:
+  http_listen_port: 3200
+
+extensions:
+  health_check:
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+        grpc:
+
+compactor:
+  compaction:
+    block_retention: 24h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/traces
+
+ingesters:
+  traces:
+    max_block_bytes: 104857600
+    max_block_duration: 5m
+
+querier:
+  frontend_worker:
+    frontend_address: 127.0.0.1:9095
+
+query_frontend:
+  search:
+    max_duration: 24h

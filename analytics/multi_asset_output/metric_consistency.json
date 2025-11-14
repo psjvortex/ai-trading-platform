@@ -1,0 +1,62 @@
+{
+  "Acceleration": {
+    "datasets": 5,
+    "coverage": 0.8333333333333334,
+    "avg_profit_corr": 0.054791456895734426,
+    "avg_win_corr": 0.13768856700978765,
+    "appears_in": [
+      "NAS100_5M",
+      "NAS100_15M",
+      "US30_5M",
+      "USDJPY_5M",
+      "AUDUSD_5M"
+    ]
+  },
+  "Speed": {
+    "datasets": 6,
+    "coverage": 1.0,
+    "avg_profit_corr": 0.03058081844472534,
+    "avg_win_corr": 0.13513212239885006,
+    "appears_in": [
+      "NAS100_5M",
+      "NAS100_15M",
+      "US30_5M",
+      "EURUSD_5M",
+      "USDJPY_5M",
+      "AUDUSD_5M"
+    ]
+  },
+  "Jerk": {
+    "datasets": 2,
+    "coverage": 0.3333333333333333,
+    "avg_profit_corr": 0.05361229875053505,
+    "avg_win_corr": 0.10314762985210296,
+    "appears_in": [
+      "US30_5M",
+      "AUDUSD_5M"
+    ]
+  },
+  "Momentum": {
+    "datasets": 3,
+    "coverage": 0.5,
+    "avg_profit_corr": -0.10988754664427003,
+    "avg_win_corr": 0.07265429504384692,
+    "appears_in": [
+      "NAS100_5M",
+      "NAS100_15M",
+      "USDJPY_5M"
+    ]
+  },
+  "Confluence": {
+    "datasets": 4,
+    "coverage": 0.6666666666666666,
+    "avg_profit_corr": 0.012309439141912756,
+    "avg_win_corr": 0.1464394417286452,
+    "appears_in": [
+      "NAS100_5M",
+      "NAS100_15M",
+      "US30_5M",
+      "AUDUSD_5M"
+    ]
+  }
+}
