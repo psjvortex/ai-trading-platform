@@ -1,15 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Trade } from '../types';
 import { optimizeStrategy, findBestConfiguration, OptimizationFilter } from '../lib/analytics';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Check, Copy, Sliders, Plus, Trash2, Wand2, TrendingUp } from 'lucide-react';
+import { Check, Copy, Sliders, Plus, Trash2, Wand2, TrendingUp, BarChart2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// Format dollar amounts with commas, no decimals
+const formatDollar = (value: number): string => {
+  return Math.round(value).toLocaleString('en-US');
+};
 
 interface OptimizationEngineProps {
   trades: Trade[];
   direction: 'Long' | 'Short' | 'All';
+  longFilters: OptimizationFilter[];
+  setLongFilters: (filters: OptimizationFilter[]) => void;
+  shortFilters: OptimizationFilter[];
+  setShortFilters: (filters: OptimizationFilter[]) => void;
+  allFilters: OptimizationFilter[];
+  setAllFilters: (filters: OptimizationFilter[]) => void;
 }
 
 export const AVAILABLE_METRICS: { key: keyof Trade; label: string }[] = [
@@ -44,14 +55,16 @@ export const AVAILABLE_METRICS: { key: keyof Trade; label: string }[] = [
 
 const CATEGORICAL_METRICS = ['Signal_Entry_Zone', 'Signal_Entry_Regime', 'Signal_Exit_Zone', 'Signal_Exit_Regime'];
 
-export default function OptimizationEngine({ trades, direction }: OptimizationEngineProps) {
-  // State for Longs
-  const [longFilters, setLongFilters] = useState<OptimizationFilter[]>([]);
-  // State for Shorts
-  const [shortFilters, setShortFilters] = useState<OptimizationFilter[]>([]);
-  // State for All
-  const [allFilters, setAllFilters] = useState<OptimizationFilter[]>([]);
-  
+export default function OptimizationEngine({ 
+  trades, 
+  direction,
+  longFilters,
+  setLongFilters,
+  shortFilters,
+  setShortFilters,
+  allFilters,
+  setAllFilters
+}: OptimizationEngineProps) {
   const [result, setResult] = useState<any>(null);
   const [longStats, setLongStats] = useState<any>(null);
   const [shortStats, setShortStats] = useState<any>(null);
@@ -59,6 +72,7 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
   const [equityCurve, setEquityCurve] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [hasTuned, setHasTuned] = useState(false); // Track if any tuning has been performed
 
   // Derived state based on current direction
   let filters: OptimizationFilter[];
@@ -84,7 +98,8 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
 
     for (let pass = 0; pass < passes; pass++) {
       for (let i = 0; i < currentFilters.length; i++) {
-        if (!currentFilters[i].enabled) continue;
+        // Skip only if explicitly disabled (enabled === false), not if undefined
+        if (currentFilters[i].enabled === false) continue;
 
         // Optimize this filter against the context of all OTHER filters
         const otherFilters = currentFilters.filter((_, idx) => idx !== i);
@@ -112,6 +127,7 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
     }
 
     setFilters(currentFilters);
+    setHasTuned(true); // Mark that tuning has been performed
     setIsOptimizing(false);
   };
 
@@ -188,7 +204,7 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
       // Downsample for performance if needed (every 5th trade if > 1000 trades)
       return {
         trade: i + 1,
-        date: t.IN_MT_Date || t.IN_MT_MASTER_DATE_TIME,
+        date: t.IN_MT_MASTER_DATE_TIME,
         Baseline: runningBaseline,
         Optimized: runningOptimized
       };
@@ -207,14 +223,16 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
     if (isCategorical) {
       // Find all unique values in the current dataset
       const uniqueValues = Array.from(new Set(result.trades.map((t: Trade) => String(t[metric])))) as string[];
-      setFilters([...filters, { metric, type: 'categorical', selectedValues: uniqueValues, enabled: true }]);
+      // Add new filter at the BEGINNING (newest on top)
+      setFilters([{ metric, type: 'categorical', selectedValues: uniqueValues, enabled: true }, ...filters]);
     } else {
       // Find initial range (min/max of current dataset)
       const values = result.trades.map((t: Trade) => t[metric] as number).filter((v: number) => !isNaN(v));
       const min = Math.min(...values);
       const max = Math.max(...values);
 
-      setFilters([...filters, { metric, min, max, enabled: true }]);
+      // Add new filter at the BEGINNING (newest on top)
+      setFilters([{ metric, min, max, enabled: true }, ...filters]);
     }
   };
 
@@ -227,6 +245,10 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
   const removeFilter = (index: number) => {
     const newFilters = filters.filter((_, i) => i !== index);
     setFilters(newFilters);
+    // Reset hasTuned if all filters are removed
+    if (newFilters.length === 0) {
+      setHasTuned(false);
+    }
   };
 
   const autoOptimizeFilter = (index: number) => {
@@ -243,6 +265,7 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
       } else if (bestConfig.min !== undefined && bestConfig.max !== undefined) {
         updateFilter(index, { min: bestConfig.min, max: bestConfig.max });
       }
+      setHasTuned(true); // Mark that tuning has been performed
     }
   };
 
@@ -250,8 +273,8 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
     if (!combinedStats) return '';
     
     let code = `// === OPTIMIZED INPUTS (Generated: ${new Date().toLocaleString()}) ===\n`;
-    code += `// Total Net: $${combinedStats.netProfit.toFixed(0)} | Win Rate: ${combinedStats.winRate.toFixed(1)}% | Trades: ${combinedStats.totalTrades}\n`;
-    code += `// Longs: $${longStats?.netProfit.toFixed(0)} (${longStats?.winRate.toFixed(1)}%) | Shorts: $${shortStats?.netProfit.toFixed(0)} (${shortStats?.winRate.toFixed(1)}%)\n\n`;
+    code += `// Total Net: $${formatDollar(combinedStats.netProfit)} | Win Rate: ${combinedStats.winRate.toFixed(1)}% | Trades: ${combinedStats.totalTrades}\n`;
+    code += `// Longs: $${formatDollar(longStats?.netProfit || 0)} (${longStats?.winRate.toFixed(1)}%) | Shorts: $${formatDollar(shortStats?.netProfit || 0)} (${shortStats?.winRate.toFixed(1)}%)\n\n`;
     
     code += `input group "🎯 Optimized Filters"\n`;
 
@@ -345,54 +368,305 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!result) return <div>Loading...</div>;
+  // Calculate additional metrics for each direction
+  const calculateDetailedStats = (tradeList: Trade[]) => {
+    if (!tradeList || tradeList.length === 0) {
+      return {
+        totalTrades: 0,
+        wins: 0,
+        losses: 0,
+        winRate: 0,
+        netProfit: 0,
+        grossProfit: 0,
+        grossLoss: 0,
+        profitFactor: 0,
+        avgWin: 0,
+        avgLoss: 0,
+        expectancy: 0,
+        maxWin: 0,
+        maxLoss: 0,
+        avgTrade: 0,
+      };
+    }
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-      {/* Left: Controls */}
-      <Card className="lg:col-span-2 border-primary/20 bg-primary/5 flex flex-col h-full">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <div className="flex items-center gap-4">
-            <CardTitle className="flex items-center gap-2 text-primary">
-              <Sliders className="h-5 w-5" />
-              Strategy Optimizer
-            </CardTitle>
-            <div className="flex bg-background rounded-lg border p-1 opacity-50 cursor-not-allowed" title="Controlled by Dashboard">
-              <button
-                disabled
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${direction === 'All' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-              >
-                All
-              </button>
-              <button
-                disabled
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${direction === 'Long' ? 'bg-green-500 text-white' : 'text-muted-foreground'}`}
-              >
-                Longs
-              </button>
-              <button
-                disabled
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${direction === 'Short' ? 'bg-red-500 text-white' : 'text-muted-foreground'}`}
-              >
-                Shorts
-              </button>
+    const wins = tradeList.filter(t => t.NetProfit > 0);
+    const losses = tradeList.filter(t => t.NetProfit <= 0);
+    const grossProfit = wins.reduce((sum, t) => sum + t.NetProfit, 0);
+    const grossLoss = Math.abs(losses.reduce((sum, t) => sum + t.NetProfit, 0));
+    const netProfit = grossProfit - grossLoss;
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+
+    return {
+      totalTrades: tradeList.length,
+      wins: wins.length,
+      losses: losses.length,
+      winRate: tradeList.length > 0 ? (wins.length / tradeList.length) * 100 : 0,
+      netProfit,
+      grossProfit,
+      grossLoss,
+      profitFactor,
+      avgWin: wins.length > 0 ? grossProfit / wins.length : 0,
+      avgLoss: losses.length > 0 ? grossLoss / losses.length : 0,
+      expectancy: tradeList.length > 0 ? netProfit / tradeList.length : 0,
+      maxWin: wins.length > 0 ? Math.max(...wins.map(t => t.NetProfit)) : 0,
+      maxLoss: losses.length > 0 ? Math.min(...losses.map(t => t.NetProfit)) : 0,
+      avgTrade: tradeList.length > 0 ? netProfit / tradeList.length : 0,
+    };
+  };
+
+  // Optimized stats (with filters applied)
+  const longDetailed = calculateDetailedStats(longStats?.trades || []);
+  const shortDetailed = calculateDetailedStats(shortStats?.trades || []);
+  const totalDetailed = calculateDetailedStats(combinedStats?.trades || []);
+
+  // Baseline stats (NO filters - raw directional data)
+  const longBaseline = useMemo(() => {
+    const longTrades = trades.filter(t => t.Trade_Direction === 'Long' || t.IN_Order_Direction === 'buy');
+    return calculateDetailedStats(longTrades);
+  }, [trades]);
+
+  const shortBaseline = useMemo(() => {
+    const shortTrades = trades.filter(t => t.Trade_Direction === 'Short' || t.IN_Order_Direction === 'sell');
+    return calculateDetailedStats(shortTrades);
+  }, [trades]);
+
+  const totalBaseline = useMemo(() => {
+    return calculateDetailedStats(trades);
+  }, [trades]);
+
+  // Check if optimization has changed from baseline
+  const hasLongOptimization = longFilters.some(f => f.enabled !== false);
+  const hasShortOptimization = shortFilters.some(f => f.enabled !== false);
+  const hasAnyOptimization = hasLongOptimization || hasShortOptimization;
+
+  // Delta calculation helper
+  const getDelta = (current: number, baseline: number) => {
+    const delta = current - baseline;
+    return delta;
+  };
+
+  // Stats card component with baseline comparison
+  const StatsCard = ({ 
+    title, 
+    stats, 
+    baseline, 
+    color, 
+    icon,
+    hasOptimization,
+    isActive 
+  }: { 
+    title: string; 
+    stats: ReturnType<typeof calculateDetailedStats>; 
+    baseline: ReturnType<typeof calculateDetailedStats>;
+    color: string; 
+    icon: React.ReactNode;
+    hasOptimization: boolean;
+    isActive: boolean;
+  }) => {
+    const profitDelta = getDelta(stats.netProfit, baseline.netProfit);
+    const winRateDelta = getDelta(stats.winRate, baseline.winRate);
+    const tradesDelta = getDelta(stats.totalTrades, baseline.totalTrades);
+    const winsDelta = getDelta(stats.wins, baseline.wins);
+    const lossesDelta = getDelta(stats.losses, baseline.losses);
+
+    const DeltaBadge = ({ delta, suffix = '', invert = false }: { delta: number; suffix?: string; invert?: boolean }) => {
+      if (!hasOptimization || delta === 0) return null;
+      const isPositive = invert ? delta < 0 : delta > 0;
+      const formattedDelta = suffix === '%' ? delta.toFixed(1) : formatDollar(delta);
+      return (
+        <span className={`ml-1 text-[10px] font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+          {delta > 0 ? '+' : ''}{formattedDelta}{suffix}
+        </span>
+      );
+    };
+
+    // Dynamic styling based on active state - bright outline instead of background tint
+    const borderColor = color === 'green' ? 'border-green-500' : color === 'red' ? 'border-red-500' : 'border-blue-500';
+    const cardStyle = isActive 
+      ? `bg-zinc-900/50 ${borderColor} border-2` 
+      : 'bg-zinc-900/50 border-zinc-700/30 border';
+    const titleColor = isActive 
+      ? (color === 'green' ? 'text-green-500' : color === 'red' ? 'text-red-500' : 'text-blue-500')
+      : 'text-zinc-400';
+
+    return (
+      <Card className={`${cardStyle} transition-all duration-200`}>
+        <CardHeader className="pb-3">
+          <CardTitle className={`text-lg font-bold flex items-center gap-2 ${titleColor} transition-colors`}>
+            {icon}
+            {title}
+            {hasOptimization && isActive && (
+              <span className="ml-auto text-[10px] font-normal text-muted-foreground bg-zinc-800 px-2 py-0.5 rounded">
+                vs baseline
+              </span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Primary Metrics */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="text-center p-3 bg-zinc-800/50 rounded-lg">
+              <div className="flex items-center justify-center gap-1">
+                <span className={`text-3xl font-bold ${stats.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  ${formatDollar(stats.netProfit)}
+                </span>
+                {isActive && <DeltaBadge delta={profitDelta} />}
+              </div>
+              <div className="text-xs text-muted-foreground">Net Profit</div>
+              {hasOptimization && isActive && (
+                <div className="text-[10px] text-zinc-500 mt-0.5">
+                  was ${formatDollar(baseline.netProfit)}
+                </div>
+              )}
+            </div>
+            <div className="text-center p-3 bg-zinc-800/50 rounded-lg">
+              <div className="flex items-center justify-center gap-1">
+                <span className={`text-3xl font-bold ${stats.winRate >= 50 ? 'text-green-500' : 'text-yellow-500'}`}>
+                  {stats.winRate.toFixed(1)}%
+                </span>
+                {isActive && <DeltaBadge delta={winRateDelta} suffix="%" />}
+              </div>
+              <div className="text-xs text-muted-foreground">Win Rate</div>
+              {hasOptimization && isActive && (
+                <div className="text-[10px] text-zinc-500 mt-0.5">
+                  was {baseline.winRate.toFixed(1)}%
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Secondary Metrics */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2 bg-zinc-800/30 rounded">
+              <div className="flex items-center justify-center gap-0.5">
+                <span className="text-lg font-semibold">{stats.totalTrades}</span>
+                {isActive && <DeltaBadge delta={tradesDelta} />}
+              </div>
+              <div className="text-[10px] text-muted-foreground">Trades</div>
+            </div>
+            <div className="p-2 bg-zinc-800/30 rounded">
+              <div className="flex items-center justify-center gap-0.5">
+                <span className="text-lg font-semibold text-green-400">{stats.wins}</span>
+                {isActive && <DeltaBadge delta={winsDelta} />}
+              </div>
+              <div className="text-[10px] text-muted-foreground">Wins</div>
+            </div>
+            <div className="p-2 bg-zinc-800/30 rounded">
+              <div className="flex items-center justify-center gap-0.5">
+                <span className="text-lg font-semibold text-red-400">{stats.losses}</span>
+                {isActive && <DeltaBadge delta={lossesDelta} invert />}
+              </div>
+              <div className="text-[10px] text-muted-foreground">Losses</div>
+            </div>
+          </div>
+
+          {/* Detailed Metrics Table */}
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between py-1 border-b border-zinc-800">
+              <span className="text-muted-foreground">Profit Factor</span>
+              <span className={`font-mono font-medium ${stats.profitFactor >= 1.5 ? 'text-green-400' : stats.profitFactor >= 1 ? 'text-yellow-400' : 'text-red-400'}`}>
+                {stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-zinc-800">
+              <span className="text-muted-foreground">Expectancy</span>
+              <span className={`font-mono font-medium ${stats.expectancy >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                ${formatDollar(stats.expectancy)}
+              </span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-zinc-800">
+              <span className="text-muted-foreground">Avg Win</span>
+              <span className="font-mono font-medium text-green-400">${formatDollar(stats.avgWin)}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-zinc-800">
+              <span className="text-muted-foreground">Avg Loss</span>
+              <span className="font-mono font-medium text-red-400">-${formatDollar(stats.avgLoss)}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-zinc-800">
+              <span className="text-muted-foreground">Max Win</span>
+              <span className="font-mono font-medium text-green-400">${formatDollar(stats.maxWin)}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-muted-foreground">Max Loss</span>
+              <span className="font-mono font-medium text-red-400">${formatDollar(Math.abs(stats.maxLoss))}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Loading state check - MUST be after all hooks
+  if (!result) {
+    return <div className="text-center py-8 text-muted-foreground">Loading optimization data...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Row 1: Three Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard 
+          title="Longs" 
+          stats={longDetailed} 
+          baseline={longBaseline}
+          color="green"
+          icon={<TrendingUp className="h-5 w-5" />}
+          hasOptimization={hasLongOptimization}
+          isActive={direction === 'Long'}
+        />
+        <StatsCard 
+          title="Shorts" 
+          stats={shortDetailed} 
+          baseline={shortBaseline}
+          color="red"
+          icon={<TrendingUp className="h-5 w-5 rotate-180" />}
+          hasOptimization={hasShortOptimization}
+          isActive={direction === 'Short'}
+        />
+        <StatsCard 
+          title="Combined" 
+          stats={totalDetailed} 
+          baseline={totalBaseline}
+          color="blue"
+          icon={<BarChart2 className="h-5 w-5" />}
+          hasOptimization={hasAnyOptimization}
+          isActive={direction === 'All'}
+        />
+      </div>
+
+      {/* Row 2: Strategy Optimizer (Full Width) */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2 text-primary">
+            <Sliders className="h-5 w-5" />
+            Strategy Optimizer
+            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
+              direction === 'Long' ? 'bg-green-500/20 text-green-400' : 
+              direction === 'Short' ? 'bg-red-500/20 text-red-400' : 
+              'bg-primary/20 text-primary'
+            }`}>
+              {direction}
+            </span>
+          </CardTitle>
           
           <div className="flex items-center gap-2">
             <Button 
               variant="outline" 
               onClick={handleGlobalOptimization}
-              disabled={isOptimizing || filters.length === 0}
-              className="gap-2 border-purple-500/50 hover:bg-purple-500/10 text-purple-500 h-9 px-3"
+              disabled={isOptimizing || filters.length === 0 || direction === 'All'}
+              className={`gap-2 h-9 px-3 ${
+                direction === 'All' 
+                  ? 'border-zinc-700 text-zinc-500 cursor-not-allowed' 
+                  : 'border-purple-500/50 hover:bg-purple-500/10 text-purple-500'
+              }`}
             >
               {isOptimizing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" /> : <Wand2 className="h-4 w-4" />}
               Auto-Tune All
             </Button>
 
-            <Select onValueChange={addFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="+ Add Metric Filter" />
+            <Select onValueChange={addFilter} disabled={direction === 'All'}>
+              <SelectTrigger className={`w-[180px] ${direction === 'All' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <SelectValue placeholder="+ Add Filter" />
               </SelectTrigger>
               <SelectContent>
                 {AVAILABLE_METRICS.map(m => (
@@ -403,199 +677,200 @@ export default function OptimizationEngine({ trades, direction }: OptimizationEn
           </div>
         </CardHeader>
 
-        <CardContent className="flex-1 overflow-auto space-y-4">
-          {/* Equity Curve Chart */}
-          <div className="h-[200px] w-full bg-card border rounded-lg p-2 mb-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={equityCurve}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="trade" hide />
-                <YAxis stroke="#888" fontSize={10} tickFormatter={(val) => `$${val}`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#111', borderColor: '#333' }}
-                  formatter={(val: number) => [`$${val.toFixed(0)}`, '']}
-                />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="Baseline" 
-                  stroke="#666" 
-                  dot={false} 
-                  strokeWidth={1}
-                  strokeDasharray="5 5" 
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="Optimized" 
-                  stroke="#10b981" 
-                  dot={false} 
-                  strokeWidth={2} 
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Active Filters List */}
-          {filters.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-border/50 rounded-lg">
-              <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Add metrics to start optimizing {direction} trades.</p>
+        <CardContent className="space-y-4">
+          {/* Two Column Layout: Chart + Filters */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Equity Curve Chart */}
+            <div className="h-[220px] w-full bg-card border rounded-lg p-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={equityCurve}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis dataKey="trade" hide />
+                  <YAxis stroke="#888" fontSize={10} tickFormatter={(val) => `$${formatDollar(val)}`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#111', borderColor: '#333' }}
+                    formatter={(val: number, name: string) => [`$${formatDollar(val)}`, name]}
+                  />
+                  <Legend />
+                  {/* Baseline: solid & prominent when not tuned, dashed when tuned */}
+                  <Line 
+                    type="monotone" 
+                    dataKey="Baseline" 
+                    stroke={!hasTuned ? '#3b82f6' : '#666'} 
+                    dot={false} 
+                    strokeWidth={!hasTuned ? 2 : 1}
+                    strokeDasharray={!hasTuned ? undefined : '5 5'} 
+                  />
+                  {/* Optimized: only show after tuning has been performed */}
+                  {hasTuned && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="Optimized" 
+                      stroke="#10b981" 
+                      dot={false} 
+                      strokeWidth={2}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {filters.map((filter, idx) => {
-                const label = AVAILABLE_METRICS.find(m => m.key === filter.metric)?.label;
-                
-                if (filter.type === 'categorical') {
-                  // Get all possible values from the original dataset (not filtered) to ensure options remain available
-                  const allValues = Array.from(new Set(trades.map(t => String(t[filter.metric])))).sort();
+
+            {/* Active Filters List */}
+            {filters.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border-2 border-dashed border-border/50 rounded-lg">
+                <Plus className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Add metrics to optimize {direction} trades</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filters.map((filter, idx) => {
+                  const label = AVAILABLE_METRICS.find(m => m.key === filter.metric)?.label;
                   
+                  if (filter.type === 'categorical') {
+                    const allValues = Array.from(new Set(trades.map(t => String(t[filter.metric])))).sort();
+                    
+                    return (
+                      <div key={idx} className="bg-card border rounded-lg p-3 flex items-center gap-3 shadow-sm">
+                        <div className="w-28 font-medium text-sm">{label}</div>
+                        
+                        <div className="flex-1 flex flex-wrap gap-1">
+                          {allValues.map(val => (
+                            <label key={val} className={`flex items-center gap-1 text-xs cursor-pointer px-2 py-1 rounded border transition-colors ${filter.selectedValues?.includes(val) ? 'bg-primary/20 border-primary text-primary' : 'bg-secondary/50 border-transparent text-muted-foreground hover:bg-secondary'}`}>
+                              <input 
+                                type="checkbox"
+                                className="hidden"
+                                checked={filter.selectedValues?.includes(val)}
+                                onChange={(e) => {
+                                  const current = filter.selectedValues || [];
+                                  let newValues;
+                                  if (e.target.checked) {
+                                    newValues = [...current, val];
+                                  } else {
+                                    newValues = current.filter(v => v !== val);
+                                  }
+                                  updateFilter(idx, { selectedValues: newValues });
+                                }}
+                              />
+                              {val}
+                            </label>
+                          ))}
+                        </div>
+
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            className="h-7 w-7 p-0" 
+                            onClick={() => autoOptimizeFilter(idx)}
+                            disabled={direction === 'All'}
+                          >
+                            <Wand2 className={`h-4 w-4 ${direction === 'All' ? 'text-zinc-600' : 'text-purple-400'}`} />
+                          </Button>
+                          <Button variant="ghost" className="h-7 w-7 p-0" onClick={() => removeFilter(idx)}>
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
-                    <div key={idx} className="bg-card border rounded-lg p-4 flex items-center gap-4 shadow-sm">
-                      <div className="w-32 font-medium text-sm">{label}</div>
+                    <div key={idx} className="bg-card border rounded-lg p-3 flex items-center gap-3 shadow-sm">
+                      <div className="w-28 font-medium text-sm">{label}</div>
                       
-                      <div className="flex-1 flex flex-wrap gap-2">
-                        {allValues.map(val => (
-                          <label key={val} className={`flex items-center gap-1 text-xs cursor-pointer px-2 py-1 rounded border transition-colors ${filter.selectedValues?.includes(val) ? 'bg-primary/20 border-primary text-primary' : 'bg-secondary/50 border-transparent text-muted-foreground hover:bg-secondary'}`}>
-                            <input 
-                              type="checkbox"
-                              className="hidden"
-                              checked={filter.selectedValues?.includes(val)}
-                              onChange={(e) => {
-                                const current = filter.selectedValues || [];
-                                let newValues;
-                                if (e.target.checked) {
-                                  newValues = [...current, val];
-                                } else {
-                                  newValues = current.filter(v => v !== val);
-                                }
-                                updateFilter(idx, { selectedValues: newValues });
-                              }}
-                            />
-                            {val}
-                          </label>
-                        ))}
+                      <div className="flex-1 flex items-center gap-2">
+                        <input 
+                          type="range" 
+                          min={-100} max={100}
+                          value={filter.min}
+                          onChange={(e) => updateFilter(idx, { min: parseFloat(e.target.value) })}
+                          className="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
+                        />
+                        <div className="flex gap-1 text-xs font-mono">
+                          <input 
+                            type="number" 
+                            value={filter.min}
+                            onChange={(e) => updateFilter(idx, { min: parseFloat(e.target.value) })}
+                            className="w-16 bg-background border rounded px-1 py-0.5"
+                          />
+                          <span className="text-muted-foreground">to</span>
+                          <input 
+                            type="number" 
+                            value={filter.max}
+                            onChange={(e) => updateFilter(idx, { max: parseFloat(e.target.value) })}
+                            className="w-16 bg-background border rounded px-1 py-0.5"
+                          />
+                        </div>
                       </div>
 
                       <div className="flex gap-1">
-                        <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => removeFilter(idx)} title="Remove Filter">
+                        <Button 
+                          variant="ghost" 
+                          className="h-7 w-7 p-0" 
+                          onClick={() => autoOptimizeFilter(idx)}
+                          disabled={direction === 'All'}
+                        >
+                          <Wand2 className={`h-4 w-4 ${direction === 'All' ? 'text-zinc-600' : 'text-purple-400'}`} />
+                        </Button>
+                        <Button variant="ghost" className="h-7 w-7 p-0" onClick={() => removeFilter(idx)}>
                           <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                         </Button>
                       </div>
                     </div>
                   );
-                }
-
-                return (
-                  <div key={idx} className="bg-card border rounded-lg p-4 flex items-center gap-4 shadow-sm">
-                    <div className="w-32 font-medium text-sm">{label}</div>
-                    
-                    <div className="flex-1 flex items-center gap-2">
-                      <input 
-                        type="range" 
-                        min={-100} max={100} // Simplified range for UI demo, ideally dynamic
-                        value={filter.min}
-                        onChange={(e) => updateFilter(idx, { min: parseFloat(e.target.value) })}
-                        className="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
-                      />
-                      <div className="flex gap-2 text-xs font-mono w-32 justify-end">
-                        <input 
-                          type="number" 
-                          value={filter.min}
-                          onChange={(e) => updateFilter(idx, { min: parseFloat(e.target.value) })}
-                          className="w-16 bg-background border rounded px-1"
-                        />
-                        <span>to</span>
-                        <input 
-                          type="number" 
-                          value={filter.max}
-                          onChange={(e) => updateFilter(idx, { max: parseFloat(e.target.value) })}
-                          className="w-16 bg-background border rounded px-1"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-1">
-                      <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => autoOptimizeFilter(idx)} title="Auto-Find Best Range">
-                        <Wand2 className="h-4 w-4 text-purple-400" />
-                      </Button>
-                      <Button variant="ghost" className="h-8 w-8 p-0" onClick={() => removeFilter(idx)} title="Remove Filter">
-                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                })}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Right: Results & Code */}
-      <div className="flex flex-col gap-6 h-full">
-        {/* Live Stats Card */}
-        <Card className="bg-card border-border shadow-lg">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Projected Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 mb-4 text-center">
-              {/* Long Column */}
-              <div>
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider border-b pb-1 mb-2">Long</div>
-                <div className="text-2xl font-bold">{longStats?.winRate.toFixed(1)}%</div>
-                <div className="text-xs text-muted-foreground mb-1">{longStats?.totalTrades} trades</div>
-                <div className={`text-lg font-bold ${longStats?.netProfit > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  ${longStats?.netProfit.toFixed(0)}
-                </div>
-              </div>
-
-              {/* Short Column */}
-              <div>
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider border-b pb-1 mb-2">Short</div>
-                <div className="text-2xl font-bold">{shortStats?.winRate.toFixed(1)}%</div>
-                <div className="text-xs text-muted-foreground mb-1">{shortStats?.totalTrades} trades</div>
-                <div className={`text-lg font-bold ${shortStats?.netProfit > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  ${shortStats?.netProfit.toFixed(0)}
-                </div>
-              </div>
-
-              {/* Total Column */}
-              <div>
-                <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider border-b pb-1 mb-2">Total</div>
-                <div className="text-2xl font-bold text-primary">{combinedStats?.winRate.toFixed(1)}%</div>
-                <div className="text-xs text-muted-foreground mb-1">{combinedStats?.totalTrades} trades</div>
-                <div className={`text-lg font-bold ${combinedStats?.netProfit > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  ${combinedStats?.netProfit.toFixed(0)}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Code Generator */}
-        <Card className="flex-1 flex flex-col">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Copy className="h-5 w-5" />
-              MQL5 Input Generator
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            <div className="flex-1 bg-zinc-950 p-4 rounded-lg border border-zinc-800 font-mono text-xs text-zinc-300 overflow-auto whitespace-pre">
+      {/* Bottom Row: MQL5 Code Generator */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Copy className="h-5 w-5" />
+            MQL5 Input Generator
+            <span className="ml-auto text-xs text-muted-foreground font-normal">
+              Copy these inputs to your EA configuration
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800 font-mono text-xs text-zinc-300 overflow-auto whitespace-pre max-h-[300px]">
               {generateMQL5Code()}
             </div>
-            <Button 
-              onClick={handleCopy}
-              className="mt-4 w-full gap-2"
-              variant="default"
-            >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Copied to Clipboard' : 'Copy Inputs'}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <div className="text-sm font-medium text-green-400 mb-1">Long Filters Active: {longFilters.filter(f => f.enabled !== false).length}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {longFilters.filter(f => f.enabled !== false).map(f => 
+                      AVAILABLE_METRICS.find(m => m.key === f.metric)?.label
+                    ).join(', ') || 'None'}
+                  </div>
+                </div>
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <div className="text-sm font-medium text-red-400 mb-1">Short Filters Active: {shortFilters.filter(f => f.enabled !== false).length}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {shortFilters.filter(f => f.enabled !== false).map(f => 
+                      AVAILABLE_METRICS.find(m => m.key === f.metric)?.label
+                    ).join(', ') || 'None'}
+                  </div>
+                </div>
+              </div>
+              <Button 
+                onClick={handleCopy}
+                className="mt-4 w-full gap-2 h-12 text-base"
+                variant="default"
+              >
+                {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                {copied ? 'Copied to Clipboard!' : 'Copy EA Inputs'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

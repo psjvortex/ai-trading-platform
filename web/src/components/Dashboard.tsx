@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Papa from 'papaparse'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download } from 'lucide-react'
+import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download, Clock, Calendar, LayoutDashboard, Settings, LineChartIcon, Filter } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Trade } from '../types'
+import { OptimizationFilter, optimizeStrategy } from '../lib/analytics'
 import OptimizationEngine from './OptimizationEngine'
 import ExitAnalysis from './ExitAnalysis'
 import EfficiencyAnalysis from './EfficiencyAnalysis'
 import CorrelationMatrix from './CorrelationMatrix'
+import TemporalAnalysis from './TemporalAnalysis'
+import SessionAnalysis from './SessionAnalysis'
+import PerformanceSummary from './PerformanceSummary'
 
 export default function Dashboard() {
   const [trades, setTrades] = useState<Trade[]>([])
@@ -18,11 +22,56 @@ export default function Dashboard() {
     winRate: 0,
     profitFactor: 0,
     avgWin: 0,
-    avgLoss: 0
+    avgLoss: 0,
+    // Extended stats
+    wins: 0,
+    losses: 0,
+    grossProfit: 0,
+    grossLoss: 0,
+    expectancy: 0,
+    maxWin: 0,
+    maxLoss: 0,
+    maxDrawdown: 0,
+    maxDrawdownPct: 0,
+    avgHoldTime: 0,
+    longsCount: 0,
+    shortsCount: 0,
+    longWinRate: 0,
+    shortWinRate: 0
   })
   
-  // Global Direction State
-  const [direction, setDirection] = useState<'All' | 'Long' | 'Short'>('Long');
+  // Global Direction State - defaults to 'All' to show Combined stats highlighted
+  const [direction, setDirection] = useState<'All' | 'Long' | 'Short'>('All');
+  
+  // Active Tab State
+  const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'temporal' | 'sessions' | 'optimization' | 'analysis'>('overview');
+  
+  // Lifted Optimization Filter State (shared across all tabs)
+  const [longFilters, setLongFilters] = useState<OptimizationFilter[]>([]);
+  const [shortFilters, setShortFilters] = useState<OptimizationFilter[]>([]);
+  const [allFilters, setAllFilters] = useState<OptimizationFilter[]>([]);
+
+  // Calculate optimized trades based on direction and filters
+  const optimizedTrades = useMemo(() => {
+    if (trades.length === 0) return [];
+    
+    if (direction === 'All') {
+      // For 'All', apply Long filters to longs and Short filters to shorts, then combine
+      const longResult = optimizeStrategy(trades, 'Long', longFilters);
+      const shortResult = optimizeStrategy(trades, 'Short', shortFilters);
+      return [...longResult.trades, ...shortResult.trades];
+    } else {
+      const filters = direction === 'Long' ? longFilters : shortFilters;
+      const result = optimizeStrategy(trades, direction, filters);
+      return result.trades;
+    }
+  }, [trades, direction, longFilters, shortFilters, allFilters]);
+
+  // Check if optimization is active
+  const hasActiveFilters = useMemo(() => {
+    const activeFilters = direction === 'Long' ? longFilters : direction === 'Short' ? shortFilters : [...longFilters, ...shortFilters];
+    return activeFilters.some(f => f.enabled !== false);
+  }, [direction, longFilters, shortFilters]);
 
   // Filter trades based on direction for global stats
   const filteredTrades = trades.filter(t => {
@@ -60,21 +109,49 @@ export default function Dashboard() {
     fetchData()
   }, [])
 
-  // Recalculate stats whenever filteredTrades changes
+  // Recalculate stats whenever optimizedTrades changes
   useEffect(() => {
-    calculateStats(filteredTrades)
-  }, [filteredTrades])
+    calculateStats(optimizedTrades)
+  }, [optimizedTrades])
 
   const calculateStats = (data: Trade[]) => {
+    if (data.length === 0) return;
+    
     const totalTrades = data.length
     const netProfit = data.reduce((sum, t) => sum + t.NetProfit, 0)
     const wins = data.filter(t => t.NetProfit > 0)
     const losses = data.filter(t => t.NetProfit <= 0)
-    const winRate = (wins.length / totalTrades) * 100
+    const winRate = totalTrades > 0 ? (wins.length / totalTrades) * 100 : 0
     
     const grossProfit = wins.reduce((sum, t) => sum + t.NetProfit, 0)
     const grossLoss = Math.abs(losses.reduce((sum, t) => sum + t.NetProfit, 0))
-    const profitFactor = grossLoss === 0 ? grossProfit : grossProfit / grossLoss
+    const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? Infinity : 0) : grossProfit / grossLoss
+
+    // Max win/loss
+    const maxWin = wins.length > 0 ? Math.max(...wins.map(t => t.NetProfit)) : 0
+    const maxLoss = losses.length > 0 ? Math.min(...losses.map(t => t.NetProfit)) : 0
+
+    // Calculate max drawdown
+    let peak = 0
+    let maxDD = 0
+    let runningPnL = 0
+    data.forEach(t => {
+      runningPnL += t.NetProfit
+      if (runningPnL > peak) peak = runningPnL
+      const dd = peak - runningPnL
+      if (dd > maxDD) maxDD = dd
+    })
+    const startingBalance = 10000
+    const maxDrawdownPct = peak > 0 ? (maxDD / (startingBalance + peak)) * 100 : 0
+
+    // Expectancy (average profit per trade)
+    const expectancy = totalTrades > 0 ? netProfit / totalTrades : 0
+
+    // Direction breakdown
+    const longs = data.filter(t => t.Trade_Direction === 'Long' || t.IN_Order_Direction === 'buy')
+    const shorts = data.filter(t => t.Trade_Direction === 'Short' || t.IN_Order_Direction === 'sell')
+    const longWins = longs.filter(t => t.NetProfit > 0)
+    const shortWins = shorts.filter(t => t.NetProfit > 0)
 
     setStats({
       totalTrades,
@@ -82,7 +159,21 @@ export default function Dashboard() {
       winRate,
       profitFactor,
       avgWin: wins.length ? grossProfit / wins.length : 0,
-      avgLoss: losses.length ? grossLoss / losses.length : 0
+      avgLoss: losses.length ? grossLoss / losses.length : 0,
+      wins: wins.length,
+      losses: losses.length,
+      grossProfit,
+      grossLoss,
+      expectancy,
+      maxWin,
+      maxLoss,
+      maxDrawdown: maxDD,
+      maxDrawdownPct,
+      avgHoldTime: 0, // Would need duration data
+      longsCount: longs.length,
+      shortsCount: shorts.length,
+      longWinRate: longs.length > 0 ? (longWins.length / longs.length) * 100 : 0,
+      shortWinRate: shorts.length > 0 ? (shortWins.length / shorts.length) * 100 : 0
     })
   }
 
@@ -146,7 +237,7 @@ export default function Dashboard() {
 
   // Prepare chart data
   let cumulative = 0
-  const equityCurve = filteredTrades.map((t, i) => {
+  const equityCurve = optimizedTrades.map((t, i) => {
     cumulative += t.NetProfit
     return {
       id: i,
@@ -160,7 +251,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Alpha Physics Dashboard</h1>
-          <p className="text-muted-foreground mt-1">v4.2.0.6 Analysis • 820 Trades • ML Optimization Mode</p>
+          <p className="text-muted-foreground mt-1">v4.2.0.6 Analysis • {stats.totalTrades} Trades • ML Optimization Mode • <span className="text-zinc-400">$10,000 Starting Balance</span></p>
         </div>
         <div className="flex gap-4">
           <button 
@@ -170,63 +261,88 @@ export default function Dashboard() {
             <Download className="h-4 w-4" />
             Export All Trades
           </button>
-          <div className="px-4 py-2 bg-card border rounded-lg text-sm font-mono">
-            <span className="text-muted-foreground">Net Result:</span>
-            <span className={stats.netProfit >= 0 ? "text-green-500 ml-2" : "text-red-500 ml-2"}>
-              ${stats.netProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Trades</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTrades}</div>
-            <p className="text-xs text-muted-foreground">100% Data Integrity</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.winRate.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">
-              PF: {stats.profitFactor.toFixed(2)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Win</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-500">${stats.avgWin.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Loss</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-500">-${stats.avgLoss.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Equity Curve */}
-      <Card className="col-span-4">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Equity Curve</CardTitle>
+      {/* Tab Navigation */}
+      <div className="flex items-center justify-between border-b border-border">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'overview' 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+            }`}
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'summary' 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            Summary
+          </button>
+          <button
+            onClick={() => setActiveTab('temporal')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'temporal' 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+            }`}
+          >
+            <Clock className="h-4 w-4" />
+            Temporal
+          </button>
+          <button
+            onClick={() => setActiveTab('sessions')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'sessions' 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+            }`}
+          >
+            <Calendar className="h-4 w-4" />
+            Sessions
+          </button>
+          <button
+            onClick={() => setActiveTab('optimization')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'optimization' 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+            }`}
+          >
+            <Settings className="h-4 w-4" />
+            Optimization
+          </button>
+          <button
+            onClick={() => setActiveTab('analysis')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'analysis' 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+            }`}
+          >
+            <LineChartIcon className="h-4 w-4" />
+            Analysis
+          </button>
+        </div>
+        
+        {/* Filter Indicator + Direction Toggle */}
+        <div className="flex items-center gap-3 mb-2">
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-purple-500/20 border border-purple-500/50 rounded-lg text-purple-400 text-xs font-medium">
+              <Filter className="h-3 w-3" />
+              Optimization Active
+            </div>
+          )}
           
           {/* Global Direction Toggle */}
           <div className="flex bg-background rounded-lg border p-1">
@@ -249,64 +365,251 @@ export default function Dashboard() {
               Shorts
             </button>
           </div>
-        </CardHeader>
-        <CardContent className="pl-2">
-          <div className="h-[350px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={equityCurve}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                <XAxis 
-                  dataKey="id" 
-                  stroke="#666" 
-                  tick={{fill: '#666'}} 
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  stroke="#666" 
-                  tick={{fill: '#666'}} 
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#18181b', border: '1px solid #333', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
-                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Equity']}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="profit" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2} 
-                  dot={false} 
-                  activeDot={{ r: 6, fill: '#3b82f6' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'overview' && (
+        <>
+          {/* Primary KPI Grid - Row 1 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {/* Net Profit - Hero Metric */}
+            <Card className={`col-span-2 ${stats.netProfit >= 0 ? 'border-green-500/30 bg-green-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+                {stats.netProfit >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
+              </CardHeader>
+              <CardContent>
+                <div className={`text-3xl font-bold ${stats.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  ${stats.netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {((stats.netProfit / 10000) * 100).toFixed(1)}% return on $10k
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Win Rate */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${stats.winRate >= 50 ? 'text-green-500' : 'text-yellow-500'}`}>
+                  {stats.winRate.toFixed(1)}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.wins}W / {stats.losses}L
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Profit Factor */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Profit Factor</CardTitle>
+                <Zap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${stats.profitFactor >= 1.5 ? 'text-green-500' : stats.profitFactor >= 1 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  {stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.profitFactor >= 1.5 ? 'Strong' : stats.profitFactor >= 1 ? 'Marginal' : 'Weak'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Expectancy */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Expectancy</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${stats.expectancy >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  ${stats.expectancy.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">per trade</p>
+              </CardContent>
+            </Card>
+
+            {/* Max Drawdown */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Max Drawdown</CardTitle>
+                <TrendingDown className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-500">
+                  ${stats.maxDrawdown.toFixed(0)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.maxDrawdownPct.toFixed(1)}% of peak
+                </p>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Physics Correlation & Pattern Recognition (Moved Up) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="h-[500px]">
-          <CorrelationMatrix trades={trades} direction={direction} />
+          {/* Secondary Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Trades</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalTrades}</div>
+                <p className="text-xs text-muted-foreground">{hasActiveFilters ? 'Filtered' : '100% Data Integrity'}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Win</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-500">${stats.avgWin.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">max: ${stats.maxWin.toFixed(0)}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Loss</CardTitle>
+                <TrendingDown className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-500">-${stats.avgLoss.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">max: ${Math.abs(stats.maxLoss).toFixed(0)}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Risk/Reward</CardTitle>
+                <Zap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${stats.avgWin / stats.avgLoss >= 1 ? 'text-green-500' : 'text-yellow-500'}`}>
+                  {stats.avgLoss > 0 ? (stats.avgWin / stats.avgLoss).toFixed(2) : '∞'}:1
+                </div>
+                <p className="text-xs text-muted-foreground">win/loss ratio</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-500/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-green-400">Longs</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.longsCount}</div>
+                <p className="text-xs text-muted-foreground">{stats.longWinRate.toFixed(1)}% win rate</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-red-500/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-red-400">Shorts</CardTitle>
+                <TrendingDown className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.shortsCount}</div>
+                <p className="text-xs text-muted-foreground">{stats.shortWinRate.toFixed(1)}% win rate</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Equity Curve */}
+          <Card className="col-span-4">
+            <CardHeader>
+              <CardTitle>Equity Curve</CardTitle>
+            </CardHeader>
+            <CardContent className="pl-2">
+              <div className="h-[350px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={equityCurve}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <XAxis 
+                      dataKey="id" 
+                      stroke="#666" 
+                      tick={{fill: '#666'}} 
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      stroke="#666" 
+                      tick={{fill: '#666'}} 
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `$${value}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#18181b', border: '1px solid #333', borderRadius: '8px' }}
+                      itemStyle={{ color: '#fff' }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Equity']}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="profit" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2} 
+                      dot={false} 
+                      activeDot={{ r: 6, fill: '#3b82f6' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Physics Correlation & Pattern Recognition */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="h-[500px]">
+              <CorrelationMatrix trades={optimizedTrades} direction={direction} />
+            </div>
+            <div className="h-[500px]">
+              <EfficiencyAnalysis trades={optimizedTrades} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'summary' && (
+        <PerformanceSummary trades={optimizedTrades} />
+      )}
+
+      {activeTab === 'temporal' && (
+        <TemporalAnalysis trades={optimizedTrades} direction={direction} />
+      )}
+
+      {activeTab === 'sessions' && (
+        <SessionAnalysis trades={optimizedTrades} direction={direction} />
+      )}
+
+      {activeTab === 'optimization' && (
+        <div className="space-y-8">
+          <OptimizationEngine 
+            trades={trades} 
+            direction={direction}
+            longFilters={longFilters}
+            setLongFilters={setLongFilters}
+            shortFilters={shortFilters}
+            setShortFilters={setShortFilters}
+            allFilters={allFilters}
+            setAllFilters={setAllFilters}
+          />
         </div>
-        <div className="h-[500px]">
-          <EfficiencyAnalysis trades={trades} />
+      )}
+
+      {activeTab === 'analysis' && (
+        <div className="space-y-8">
+          <ExitAnalysis trades={optimizedTrades} direction={direction} />
         </div>
-      </div>
-
-      {/* Exit Analysis */}
-      <div className="h-[800px]">
-        <ExitAnalysis trades={trades} direction={direction} />
-      </div>
-
-      {/* Optimization Engine */}
-      <div className="h-[600px]">
-        <OptimizationEngine trades={trades} direction={direction} />
-      </div>
+      )}
     </div>
   )
 }

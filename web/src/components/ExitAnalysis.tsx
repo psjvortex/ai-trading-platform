@@ -300,6 +300,23 @@ export default function ExitAnalysis({ trades, direction }: ExitAnalysisProps) {
           </div>
 
           <div className="flex-1 overflow-auto border rounded-lg">
+            {activeTrades.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 text-center p-8">
+                <Activity className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                  No {activeTab === 'TP' ? 'Take Profit' : 'Stop Loss'} Trades
+                </h3>
+                <p className="text-sm text-muted-foreground/70 max-w-md">
+                  {activeTab === 'TP' 
+                    ? 'No trades in the current optimization exited by hitting their Take Profit level.'
+                    : 'No trades in the current optimization exited by hitting their Stop Loss level.'
+                  }
+                </p>
+                <p className="text-xs text-muted-foreground/50 mt-2">
+                  Adjust your optimization filters to include trades with {activeTab === 'TP' ? 'TP' : 'SL'} exits.
+                </p>
+              </div>
+            ) : (
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/50 sticky top-0">
                 <tr>
@@ -344,6 +361,7 @@ export default function ExitAnalysis({ trades, direction }: ExitAnalysisProps) {
                 ))}
               </tbody>
             </table>
+            )}
           </div>
         </div>
       </CardContent>
