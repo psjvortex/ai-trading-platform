@@ -1,13 +1,13 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import App from './App'
+import './index.css'
 
-function App() {
-  return (
-    <div style={{ color: '#e5e7eb', background: '#0b1220', minHeight: '100vh', padding: 16 }}>
-      <h1>AI Trading Platform</h1>
-      <p>Scaffold ready: Web + API + DB via docker-compose.</p>
-    </div>
-  )
-}
+// Force dark mode for that "high-end hedge fund" look
+document.documentElement.classList.add('dark')
 
-createRoot(document.getElementById('root')!).render(<App />)
+createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
