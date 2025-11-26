@@ -75,9 +75,36 @@ export interface Trade {
   // Calculated
   NetProfit: number;
   
-  // Efficiency
+  // Efficiency / Excursion Metrics
   Trade_MAE?: number;
   Trade_MFE?: number;
+  EA_MFE?: number;
+  EA_MAE?: number;
+  EA_MFE_Percent?: number;
+  EA_MAE_Percent?: number;
+  EA_MFE_Pips?: number;
+  EA_MAE_Pips?: number;
+  EA_MFE_TimeBars?: number;
+  EA_MAE_TimeBars?: number;
+  EA_MFEUtilization?: number;
+  EA_MAEImpact?: number;
+  EA_ExcursionEfficiency?: number;
+  
+  // Post-Exit Run Up/Down
+  EA_RunUp_Price?: number;
+  EA_RunUp_Pips?: number;
+  EA_RunUp_Percent?: number;
+  EA_RunUp_TimeBars?: number;
+  EA_RunDown_Price?: number;
+  EA_RunDown_Pips?: number;
+  EA_RunDown_Percent?: number;
+  EA_RunDown_TimeBars?: number;
+  EA_EarlyExitOpportunityCost?: number;
+  
+  // Trade timing
+  EA_HoldTimeBars?: number;
+  EA_HoldTimeMinutes?: number;
+  Trade_Duration_Minutes?: number;
   
   // Additional Metrics
   EA_Entry_Quality?: number;

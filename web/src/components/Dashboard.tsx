@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import Papa from 'papaparse'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download, Clock, Calendar, LayoutDashboard, Settings, LineChartIcon, Filter } from 'lucide-react'
+import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download, Clock, Calendar, LayoutDashboard, Settings, LineChartIcon, Filter, ArrowUpDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Trade } from '../types'
 import { OptimizationFilter, optimizeStrategy } from '../lib/analytics'
@@ -12,6 +12,7 @@ import CorrelationMatrix from './CorrelationMatrix'
 import TemporalAnalysis from './TemporalAnalysis'
 import SessionAnalysis from './SessionAnalysis'
 import PerformanceSummary from './PerformanceSummary'
+import { ExcursionAnalysis } from './ExcursionAnalysis'
 
 export default function Dashboard() {
   const [trades, setTrades] = useState<Trade[]>([])
@@ -44,7 +45,7 @@ export default function Dashboard() {
   const [direction, setDirection] = useState<'All' | 'Long' | 'Short'>('All');
   
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'temporal' | 'sessions' | 'optimization' | 'analysis'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'temporal' | 'sessions' | 'optimization' | 'excursions' | 'analysis'>('overview');
   
   // Lifted Optimization Filter State (shared across all tabs)
   const [longFilters, setLongFilters] = useState<OptimizationFilter[]>([]);
@@ -321,6 +322,17 @@ export default function Dashboard() {
           >
             <Settings className="h-4 w-4" />
             Optimization
+          </button>
+          <button
+            onClick={() => setActiveTab('excursions')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'excursions' 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+            }`}
+          >
+            <ArrowUpDown className="h-4 w-4" />
+            Excursions
           </button>
           <button
             onClick={() => setActiveTab('analysis')}
@@ -602,6 +614,12 @@ export default function Dashboard() {
             allFilters={allFilters}
             setAllFilters={setAllFilters}
           />
+        </div>
+      )}
+
+      {activeTab === 'excursions' && (
+        <div className="space-y-8">
+          <ExcursionAnalysis trades={optimizedTrades} direction={direction} />
         </div>
       )}
 
