@@ -26,7 +26,7 @@ plt.style.use('dark_background')
 sns.set_palette("husl")
 
 # Paths
-DESKTOP_FOLDER = Path("/Users/patjohnston/Desktop/MT5 Backtest CSV's")
+DESKTOP_FOLDER = Path("/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder")
 OUTPUT_DIR = Path(__file__).parent / "slope_validation_output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 

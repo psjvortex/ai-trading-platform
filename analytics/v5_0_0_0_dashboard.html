@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v5.0.0.0 Baseline Analysis Dashboard</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--bg-secondary);
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(to right, var(--accent-blue), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .card {
+            background-color: var(--bg-secondary);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .stat-value.positive { color: var(--accent-green); }
+        .stat-value.negative { color: var(--accent-red); }
+
+        .table-container {
+            background-color: var(--bg-secondary);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .highlight {
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>v5.0.0.0 Baseline Analysis</h1>
+            <div class="subtitle">Dataset: NAS100 M5 | Quality: 60 | Score: 30 | Trades: 2,287</div>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <div class="stat-label">Total Trades</div>
+                <div class="stat-value">2,287</div>
+            </div>
+            <div class="card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value negative">33.2%</div>
+            </div>
+            <div class="card">
+                <div class="stat-label">Net Profit</div>
+                <div class="stat-value negative">-$8,123</div>
+            </div>
+            <div class="card">
+                <div class="stat-label">Profit Factor</div>
+                <div class="stat-value">0.83</div>
+            </div>
+        </div>
+
+        <h2 style="margin-bottom: 1.5rem;">Physics Metrics Validation (The "Smoking Gun")</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Winners (Avg)</th>
+                        <th>Losers (Avg)</th>
+                        <th>Difference</th>
+                        <th>Insight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Speed</td>
+                        <td class="highlight">143.87</td>
+                        <td class="negative">-193.03</td>
+                        <td class="highlight">+336.91</td>
+                        <td><span class="badge">Strongest Predictor</span></td>
+                    </tr>
+                    <tr>
+                        <td>SpeedSlope</td>
+                        <td class="highlight">317.21</td>
+                        <td>34.86</td>
+                        <td class="highlight">+282.35</td>
+                        <td>Strong Separation</td>
+                    </tr>
+                    <tr>
+                        <td>Acceleration</td>
+                        <td class="highlight">267.43</td>
+                        <td class="negative">-42.59</td>
+                        <td class="highlight">+310.02</td>
+                        <td>Strong Separation</td>
+                    </tr>
+                    <tr>
+                        <td>PhysicsScore</td>
+                        <td>59.62</td>
+                        <td>55.18</td>
+                        <td>+4.45</td>
+                        <td>Weak Separation</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 style="margin-top: 3rem; margin-bottom: 1.5rem;">Time of Day Analysis</h2>
+        <div class="grid">
+            <div class="card">
+                <div class="stat-label">Best Window (12:00-14:00)</div>
+                <div class="stat-value positive">+$2,094</div>
+            </div>
+            <div class="card">
+                <div class="stat-label">Worst Window (08:00-10:00)</div>
+                <div class="stat-value negative">-$6,183</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

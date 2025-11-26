@@ -3,7 +3,18 @@
 ## Project Overview
 AI-powered trading platform featuring a custom MQL5 Expert Advisor (EA) called **TickPhysics** that uses physics-based indicators (Speed, Acceleration, Momentum) to identify high-quality trade entries.
 
-## Current Status (November 14, 2025)
+## Current Status (November 26, 2025)
+
+### v5.0.0.0 - MASTER RELEASE (Granular Inputs)
+**Status**: Production Ready / Master Version
+
+#### Key Features:
+- **Granular Buy/Sell Inputs**: All major physics filters now have separate thresholds for Buy and Sell directions.
+  - `MinQualityBuy` / `MinQualitySell`
+  - `MinPhysicsScoreBuy` / `MinPhysicsScoreSell`
+  - `MinConfluenceSlopeBuy` / `MinConfluenceSlopeSell`
+- **Dashboard Integration**: Web Dashboard Generator fully synchronized to produce v5.0.0.0 compatible code.
+- **Data Integrity**: Inherits all data integrity fixes from v4.2.0.6.
 
 ### Phase 2 Optimization Complete (NAS100)
 **v4.1.8.1 - OPTIMIZED THRESHOLDS**
@@ -45,8 +56,9 @@ MinMomentumSell     = -215.5;   // was -30.0 (7x stricter)
 ## Key Files
 
 ### MQL5 Expert Advisors
-- **`MQL5/Experts/TickPhysics/TP_Integrated_EA_Crossover_4_1_8_0.mq5`**: Phase 1 baseline (relaxed thresholds)
-- **`MQL5/Experts/TickPhysics/TP_Integrated_EA_Crossover_4_1_8_1.mq5`**: Phase 2 optimized (data-driven thresholds)
+- **`MQL5/Experts/TickPhysics/TP_Integrated_EA_Crossover_5_0_0_0.mq5`**: **MASTER VERSION** (Granular Buy/Sell Inputs)
+- **`MQL5/Experts/TickPhysics/TP_Integrated_EA_Crossover_4_2_1_2.mq5`**: Previous stable (Granular Inputs backported)
+- **`MQL5/Experts/TickPhysics/TP_Integrated_EA_Crossover_4_1_8_1.mq5`**: Phase 2 optimized (Legacy)
 
 ### Python Analysis Scripts
 - **`MQL5/General/v418_signal_correlation.py`**: Signal-to-trade matching, threshold optimization

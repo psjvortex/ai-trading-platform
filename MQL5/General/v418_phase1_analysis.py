@@ -14,7 +14,7 @@ import csv
 from pathlib import Path
 
 # === FILE PATHS ===
-DESKTOP_FOLDER = Path("/Users/patjohnston/Desktop/MT5 Backtest CSV's")
+DESKTOP_FOLDER = Path("/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder")
 MT5_REPORT = DESKTOP_FOLDER / "TP_Integrated_NAS100_M05_MTBacktest_v4.180_SLOPE_MT5Backtest.csv"
 SIGNALS_CSV = DESKTOP_FOLDER / "TP_Integrated_NAS100_M05_MTBacktest_v4.180_SLOPE_signals.csv"
 TRADES_CSV = DESKTOP_FOLDER / "TP_Integrated_NAS100_M05_MTBacktest_v4.180_SLOPE_trades.csv"

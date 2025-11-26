@@ -12,7 +12,7 @@ print("  📊 MT5 BACKTEST COMPARISON - v2.4 (Baseline) vs v2.5 (Physics-Optimiz
 print("="*100 + "\n")
 
 # === PATHS ===
-MT5_DROP = Path("/Users/patjohnston/Desktop/MT5 Backtest CSV's")
+MT5_DROP = Path("/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder")
 v24_mt5 = MT5_DROP / "MTBacktest_Report_2.4.csv"
 v25_mt5 = MT5_DROP / "MTBacktest_Report_2.5.csv"
 

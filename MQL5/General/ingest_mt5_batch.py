@@ -16,7 +16,7 @@ Automates:
 
 Usage:
   python ingest_mt5_batch.py \
-      --mt5-drop "/Users/patjohnston/Desktop/MT5 Backtest CSV's" \
+      --mt5-drop "/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder" \
       --tester-root "/Users/patjohnston/Library/Application Support/net.metaquotes.wine.metatrader5/drive_c/Program Files/MetaTrader 5/Tester" \
       [--symbols BTCUSD,NAS100] [--min-trades 120 --min-winrate 30 --min-pf 1.05] [--dry-run]
 

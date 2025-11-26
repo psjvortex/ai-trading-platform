@@ -20,7 +20,7 @@ The validation script now reads from **TWO locations automatically**:
 
 ### 2. **Desktop Drop Folder** (Manual MT5 Reports)
 ```
-/Users/patjohnston/Desktop/MT5 Backtest CSV's/
+/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder/
 ```
 
 **Contains:**
@@ -43,7 +43,7 @@ After backtest completes:
 1. Right-click backtest result → "Report" → "Save as Detailed Report"
 2. Save HTML: `MTBacktest_Report_2_0_validation.html`
 3. Right-click → "Open XML" → Save CSV: `MTBacktest_Report_2_0_validation.csv`
-4. **Drag both files** to: `/Users/patjohnston/Desktop/MT5 Backtest CSV's/`
+4. **Drag both files** to: `/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder/`
 
 ### **Step 3: Run Validation**
 ```bash
@@ -82,7 +82,7 @@ python quick_validate.py
 
 📂 Reading from:
 
-   MT5 Reports:    /Users/patjohnston/Desktop/MT5 Backtest CSV's
+   MT5 Reports:    /Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder
    TP EA CSVs:     /Users/patjohnston/Library/Application Support/.../Files
 
 🔍 Scanning for CSV files...

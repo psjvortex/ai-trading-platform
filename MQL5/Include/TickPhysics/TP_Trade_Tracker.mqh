@@ -29,8 +29,19 @@ struct ActiveTrade
    double            entryQuality;     // Physics quality at entry
    double            entryConfluence;  // Confluence at entry
    double            entryMomentum;    // Momentum at entry
+   double            entrySpeed;       // Speed at entry
+   double            entryAcceleration;  // Acceleration at entry
    double            entryEntropy;     // Entropy at entry
+   double            entryJerk;        // Jerk at entry
    double            entryPhysicsScore;  // NEW: Evidence-based composite score
+   
+   // Entry Slopes (v4.5+)
+   double            entrySpeedSlope;
+   double            entryAccelerationSlope;
+   double            entryMomentumSlope;
+   double            entryConfluenceSlope;
+   double            entryJerkSlope;
+   
    string            entryZone;        // Trading zone at entry
    string            entryRegime;      // Volatility regime at entry
    double            entrySpread;      // Spread at entry
@@ -73,8 +84,19 @@ struct ClosedTrade
    double            entryQuality;
    double            entryConfluence;
    double            entryMomentum;
+   double            entrySpeed;
+   double            entryAcceleration;
    double            entryEntropy;
+   double            entryJerk;
    double            entryPhysicsScore;  // NEW: Evidence-based composite score
+   
+   // Entry Slopes (v4.5+)
+   double            entrySpeedSlope;
+   double            entryAccelerationSlope;
+   double            entryMomentumSlope;
+   double            entryConfluenceSlope;
+   double            entryJerkSlope;
+   
    string            entryZone;
    string            entryRegime;
    double            entrySpread;
@@ -189,7 +211,10 @@ public:
    
    // Trade Management
    bool              AddTrade(ulong ticket, double entryQuality, double entryConfluence, 
-                              double entryMomentum, double entryEntropy, double entryPhysicsScore,
+                              double entryMomentum, double entrySpeed, double entryAcceleration,
+                              double entryEntropy, double entryJerk, double entryPhysicsScore,
+                              double entrySpeedSlope, double entryAccelerationSlope, double entryMomentumSlope,
+                              double entryConfluenceSlope, double entryJerkSlope,
                               string entryZone, string entryRegime, double riskPercent);
    bool              RemoveTrade(ulong ticket);
    bool              UpdateTrades();  // Call on each tick
@@ -208,6 +233,7 @@ public:
    // Post-exit monitoring
    bool              HasCompletedTrades();  // Trades finished monitoring
    bool              GetNextCompletedTrade(ClosedTrade &trade);  // Retrieve & remove
+   bool              ForceFinalizeMonitoring(); // Force finalize post-exit monitoring (set monitoringActive=false)
    
    // Manual exit reason override (for reversal/strategy exits)
    bool              SetExitReason(ulong ticket, string reason);
@@ -269,10 +295,10 @@ bool CTradeTracker::Initialize(string symbol, TrackerConfig &config)
    
    if(m_config.debugMode)
    {
-      Print("✅ Trade Tracker Initialized: ", symbol);
-      Print("   MFE/MAE tracking: ", m_config.trackMFEMAE ? "ON" : "OFF");
-      Print("   Post-exit tracking: ", m_config.trackPostExit ? "ON" : "OFF");
-      Print("   Monitor bars: ", m_config.postExitMonitorBars);
+      Print(StringFormat("✅ Trade Tracker Initialized: %s", symbol));
+      Print(StringFormat("   MFE/MAE tracking: %s", m_config.trackMFEMAE ? "ON" : "OFF"));
+      Print(StringFormat("   Post-exit tracking: %s", m_config.trackPostExit ? "ON" : "OFF"));
+      Print(StringFormat("   Monitor bars: %d", m_config.postExitMonitorBars));
    }
    
    return true;
@@ -282,7 +308,10 @@ bool CTradeTracker::Initialize(string symbol, TrackerConfig &config)
 //| Add new trade to tracking                                         |
 //+------------------------------------------------------------------+
 bool CTradeTracker::AddTrade(ulong ticket, double entryQuality, double entryConfluence,
-                             double entryMomentum, double entryEntropy, double entryPhysicsScore,
+                             double entryMomentum, double entrySpeed, double entryAcceleration,
+                             double entryEntropy, double entryJerk, double entryPhysicsScore,
+                             double entrySpeedSlope, double entryAccelerationSlope, double entryMomentumSlope,
+                             double entryConfluenceSlope, double entryJerkSlope,
                              string entryZone, string entryRegime, double riskPercent)
 {
    if(!m_initialized) return false;
@@ -291,7 +320,7 @@ bool CTradeTracker::AddTrade(ulong ticket, double entryQuality, double entryConf
    if(!PositionSelectByTicket(ticket))
    {
       if(m_config.debugMode)
-         Print("⚠️ Trade Tracker: Position not found: ", ticket);
+         Print(StringFormat("⚠️ Trade Tracker: Position not found: %llu", ticket));
       return false;
    }
    
@@ -299,7 +328,7 @@ bool CTradeTracker::AddTrade(ulong ticket, double entryQuality, double entryConf
    if(FindActiveTradeIndex(ticket) >= 0)
    {
       if(m_config.debugMode)
-         Print("⚠️ Trade Tracker: Already tracking: ", ticket);
+         Print(StringFormat("⚠️ Trade Tracker: Already tracking: %llu", ticket));
       return false;
    }
    
@@ -314,12 +343,23 @@ bool CTradeTracker::AddTrade(ulong ticket, double entryQuality, double entryConf
    trade.sl = PositionGetDouble(POSITION_SL);
    trade.tp = PositionGetDouble(POSITION_TP);
    
-   // Entry conditions
+   // Entry conditions (v9.0: ALL Entry_* fields)
    trade.entryQuality = entryQuality;
    trade.entryConfluence = entryConfluence;
    trade.entryMomentum = entryMomentum;
+   trade.entrySpeed = entrySpeed;
+   trade.entryAcceleration = entryAcceleration;
    trade.entryEntropy = entryEntropy;
+   trade.entryJerk = entryJerk;
    trade.entryPhysicsScore = entryPhysicsScore;  // NEW: Store evidence-based composite score
+   
+   // Entry slopes (v4.5+)
+   trade.entrySpeedSlope = entrySpeedSlope;
+   trade.entryAccelerationSlope = entryAccelerationSlope;
+   trade.entryMomentumSlope = entryMomentumSlope;
+   trade.entryConfluenceSlope = entryConfluenceSlope;
+   trade.entryJerkSlope = entryJerkSlope;
+   
    trade.entryZone = entryZone;
    trade.entryRegime = entryRegime;
    trade.entrySpread = SymbolInfoInteger(m_symbol, SYMBOL_SPREAD) * m_pointValue / m_pointValue;
@@ -416,12 +456,23 @@ bool CTradeTracker::UpdateTrades()
             closed.sl = trade.sl;
             closed.tp = trade.tp;
             
-            // Entry conditions
+            // Entry conditions (v9.0: ALL Entry_* fields including slopes)
             closed.entryQuality = trade.entryQuality;
             closed.entryConfluence = trade.entryConfluence;
             closed.entryMomentum = trade.entryMomentum;
+            closed.entrySpeed = trade.entrySpeed;
+            closed.entryAcceleration = trade.entryAcceleration;
             closed.entryEntropy = trade.entryEntropy;
+            closed.entryJerk = trade.entryJerk;
             closed.entryPhysicsScore = trade.entryPhysicsScore;  // NEW: Transfer composite score
+            
+            // Entry slopes (v4.5+)
+            closed.entrySpeedSlope = trade.entrySpeedSlope;
+            closed.entryAccelerationSlope = trade.entryAccelerationSlope;
+            closed.entryMomentumSlope = trade.entryMomentumSlope;
+            closed.entryConfluenceSlope = trade.entryConfluenceSlope;
+            closed.entryJerkSlope = trade.entryJerkSlope;
+            
             closed.entryZone = trade.entryZone;
             closed.entryRegime = trade.entryRegime;
             closed.entrySpread = trade.entrySpread;
@@ -664,10 +715,10 @@ string CTradeTracker::DetermineExitReason(ulong ticket, double sl, double tp, do
          
          if(m_config.debugMode)
          {
-            Print("🔍 Exit Reason Detection for #", ticket);
-            Print("   DEAL_REASON enum: ", reason);
-            Print("   Close Price: ", closePrice);
-            Print("   SL: ", sl, " | TP: ", tp);
+            Print(StringFormat("🔍 Exit Reason Detection for #%llu", ticket));
+            Print(StringFormat("   DEAL_REASON enum: %d", reason));
+            Print(StringFormat("   Close Price: %s", DoubleToString(closePrice, m_digits)));
+            Print(StringFormat("   SL: %s | TP: %s", DoubleToString(sl, m_digits), DoubleToString(tp, m_digits)));
          }
          
          // Check DEAL_REASON first (most accurate)
@@ -844,6 +895,21 @@ bool CTradeTracker::GetNextCompletedTrade(ClosedTrade &trade)
 }
 
 //+------------------------------------------------------------------+
+//| Force finalize monitoring for all closed trades                  |
+//| This sets monitoringActive = false for all closed trades so they  |
+//| can be retrieved by GetNextCompletedTrade() even if the post-exit |
+//| monitor period hasn't fully elapsed; useful on Deinit to ensure    |
+//| all exits get logged before EA shutdown.                          |
+//+------------------------------------------------------------------+
+bool CTradeTracker::ForceFinalizeMonitoring()
+{
+   if(m_closedCount == 0) return false;
+   for(int i = 0; i < m_closedCount; i++)
+      m_closedTrades[i].monitoringActive = false;
+   return true;
+}
+
+//+------------------------------------------------------------------+
 //| Get total MFE across all active trades                            |
 //+------------------------------------------------------------------+
 double CTradeTracker::GetTotalMFE()
@@ -889,17 +955,17 @@ void CTradeTracker::PrintActiveTradesStatus()
    Print("════════════════════════════════════════════════════════");
    Print("📊 ACTIVE TRADES STATUS");
    Print("════════════════════════════════════════════════════════");
-   Print("Total Active: ", m_activeCount);
+   Print(StringFormat("Total Active: %d", m_activeCount));
    
    for(int i = 0; i < m_activeCount; i++)
    {
       ActiveTrade t = m_activeTrades[i];
       Print("");
-      Print("Trade #", t.ticket, " (", t.type == ORDER_TYPE_BUY ? "BUY" : "SELL", ")");
-      Print("  Entry: ", t.openPrice, " @ ", TimeToString(t.openTime));
-      Print("  MFE: ", CalculatePips(t.openPrice, t.mfe, t.type == ORDER_TYPE_BUY), " pips");
-      Print("  MAE: ", CalculatePips(t.openPrice, t.mae, t.type == ORDER_TYPE_BUY), " pips");
-      Print("  Hold: ", t.holdTimeBars, " bars");
+   Print(StringFormat("Trade #%llu (%s)", t.ticket, t.type == ORDER_TYPE_BUY ? "BUY" : "SELL"));
+   Print(StringFormat("  Entry: %s @ %s", DoubleToString(t.openPrice, m_digits), TimeToString(t.openTime)));
+   Print(StringFormat("  MFE: %s pips", DoubleToString(CalculatePips(t.openPrice, t.mfe, t.type == ORDER_TYPE_BUY), 2)));
+   Print(StringFormat("  MAE: %s pips", DoubleToString(CalculatePips(t.openPrice, t.mae, t.type == ORDER_TYPE_BUY), 2)));
+   Print(StringFormat("  Hold: %d bars", t.holdTimeBars));
    }
    Print("════════════════════════════════════════════════════════");
 }
@@ -912,15 +978,15 @@ void CTradeTracker::PrintClosedTradesStatus()
    Print("════════════════════════════════════════════════════════");
    Print("📊 CLOSED TRADES STATUS (Post-Exit Monitoring)");
    Print("════════════════════════════════════════════════════════");
-   Print("Total Monitoring: ", m_closedCount);
+   Print(StringFormat("Total Monitoring: %d", m_closedCount));
    
    for(int i = 0; i < m_closedCount; i++)
    {
       ClosedTrade t = m_closedTrades[i];
       Print("");
-      Print("Trade #", t.ticket, " (", t.type, ") - ", t.monitoringActive ? "ACTIVE" : "COMPLETE");
-      Print("  Profit: ", t.profit, " (", t.pips, " pips)");
-      Print("  RunUp: ", t.runUpPips, " pips @ bar ", t.runUpTimeBars);
+   Print(StringFormat("Trade #%llu (%s) - %s", t.ticket, t.type, t.monitoringActive ? "ACTIVE" : "COMPLETE"));
+   Print(StringFormat("  Profit: %s (%s pips)", DoubleToString(t.profit, 2), DoubleToString(t.pips, 2)));
+   Print(StringFormat("  RunUp: %s pips @ bar %d", DoubleToString(t.runUpPips, 2), t.runUpTimeBars));
       Print("  RunDown: ", t.runDownPips, " pips @ bar ", t.runDownTimeBars);
       Print("  Progress: ", t.monitorBarsElapsed, " / ", t.maxMonitorBars, " bars");
    }

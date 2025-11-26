@@ -1,0 +1,33 @@
+{
+  "name": "@ai-trading-platform/csv-processor",
+  "version": "2.0.0",
+  "description": "Enhanced Trading Dashboard & Optimization Data Model - CSV Processing Pipeline",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "process": "ts-node cli.ts process",
+    "test": "ts-node tests/runTests.ts",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "trading",
+    "mt5",
+    "backtesting",
+    "data-processing",
+    "csv"
+  ],
+  "author": "AI Trading Platform",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "csv-parse": "^5.5.3",
+    "csv-stringify": "^6.4.5",
+    "papaparse": "^5.5.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

@@ -6,7 +6,7 @@ Analyze US30 M05 backtest with relaxed settings
 import pandas as pd
 from pathlib import Path
 
-DESKTOP = Path("/Users/patjohnston/Desktop/MT5 Backtest CSV's")
+DESKTOP = Path("/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder")
 
 # Load US30 Phase 1 data
 us30_trades = pd.read_csv(DESKTOP / "TP_Integrated_US30_M05_MTBacktest_v4.180_SLOPE_trades.csv")

@@ -15,7 +15,7 @@ print("="*100 + "\n")
 
 # === PATHS ===
 TESTER_DIR = Path("/Users/patjohnston/Library/Application Support/net.metaquotes.wine.metatrader5/drive_c/Program Files/MetaTrader 5/Tester/Agent-127.0.0.1-3000/MQL5/Files")
-MT5_DROP = Path("/Users/patjohnston/Desktop/MT5 Backtest CSV's")
+MT5_DROP = Path("/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder")
 
 # Load TickPhysics CSVs
 v24_trades = TESTER_DIR / "TP_Integrated_Trades_NAS100_v2.4.csv"

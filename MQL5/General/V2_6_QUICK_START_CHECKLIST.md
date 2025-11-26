@@ -97,7 +97,7 @@
   - Right-click backtest result
   - Report → Save as Detailed Report
   - Save as: `MTBacktest_Report_2.6.csv`
-  - Move to: `/Users/patjohnston/Desktop/MT5 Backtest CSV's/`
+  - Move to: `/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder/`
 
 ---
 

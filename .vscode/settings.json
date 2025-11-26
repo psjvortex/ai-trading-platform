@@ -2,7 +2,15 @@
     "files.associations": {
         "tickphysics_crypto_selfhealing_crossover_ea_v5_0": "c",
         "tp_integrated_ea_crossover_2_0_master": "cpp",
-        "new_05": "c"
+        "new_05": "c",
+        "*.mqh": "cpp",
+        "tp_integrated_ea_crossover_4_1_9_8_1": "cpp",
+        "tp_integrated_ea_crossover_4_2_0_0_scalper": "cpp",
+        "*.mq5": "cpp",
+        "tickphysics_crypto_selfhealing_crossover_ea_v6_0": "cpp",
+        "complex": "cpp",
+        "tp_integrated_ea_crossover_3_0_0": "cpp",
+        "tp_integrated_ea_crossover_3_0_05m": "cpp"
     },
     "diffEditor.codeLens": true
 }

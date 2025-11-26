@@ -389,6 +389,16 @@ double GetAverageHoldTime() // Average bars held
 - [ ] Test with real positions
 - [ ] Validate CSV output
 
+### Force-Finalize Post-Exit Monitoring
+
+If you want to ensure all closed trades get their EXIT row logged at shutdown (EA deinit/restart) even if the post-exit monitoring period hasn't finished, call:
+
+```cpp
+g_tracker.ForceFinalizeMonitoring();
+```
+
+This will set `monitoringActive = false` for all closed trades so they become eligible for `GetNextCompletedTrade()` and will be logged by your OnDeinit() drain loop.
+
 ---
 
 ## 🎓 Example: Complete Integration

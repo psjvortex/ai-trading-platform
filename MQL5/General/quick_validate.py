@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-Quick CSV Validator - Reads from Desktop Drop Folder
-Validates TickPhysics CSVs against MT5 Report
+Quick CSV Validator - TP_CSV_Logger v8.0 Dual-Row Model
+Validates NEW 90+ column comprehensive trades CSV with ENTRY/EXIT rows
 """
 import csv
 import pandas as pd
 from pathlib import Path
 
 # === CONFIGURATION ===
-MT5_DROP_FOLDER = Path("/Users/patjohnston/Desktop/MT5 Backtest CSV's")  # All CSV files here
+MT5_DROP_FOLDER = Path("/Users/patjohnston/Desktop/MT5_Backtest_Files")  # Updated folder name
 MT5_FILES_DIR = Path("/Users/patjohnston/Library/Application Support/net.metaquotes.wine.metatrader5/drive_c/Program Files/MetaTrader 5/MQL5/Files")  # EA CSVs (live)
 MT5_TESTER_DIR = Path("/Users/patjohnston/Library/Application Support/net.metaquotes.wine.metatrader5/drive_c/Program Files/MetaTrader 5/Tester")  # Backtest CSVs
 
 # Auto-detect latest files from Desktop folder (new naming convention)
 SYMBOL = "NAS100"
 TIMEFRAME = "M05"
-VERSION = "4.181"  # Use format like 4.180, 4.181, etc.
+VERSION = "4.1.8.9"  # Update to your current version
 
 print("\n" + "="*80)
-print(f"  🚀 TICKPHYSICS CSV VALIDATOR - v{VERSION}")
+print(f"  🚀 TICKPHYSICS CSV VALIDATOR v8.0 - DUAL-ROW MODEL")
 print("="*80 + "\n")
 
 print(f"📂 Reading from:\n")
@@ -104,13 +104,59 @@ for col in df_trades.columns[:5]:
 print(f"   ... ({len(df_trades.columns)} total columns)\n")
 
 # === VALIDATE KEY COLUMNS ===
-required = ['EAName', 'EAVersion', 'Ticket', 'Profit', 'ExitReason', 'MFE_Pips', 'MAE_Pips', 'RunUp_Pips', 'RunDown_Pips']
-missing = [col for col in required if col not in df_trades.columns]
+required_v8 = [
+    'EAName', 'EAVersion', 'RowType', 'Ticket', 'Timestamp', 'OpenTime', 'CloseTime',
+    'Quality', 'PhysicsScore', 'SpeedSlope', 'Zone', 'Regime',
+    'EntryQuality', 'EntryPhysicsScore', 'EntryZone',
+    'Profit', 'Pips', 'ExitReason', 'MFE', 'MAE',
+    'TimeSegment15M', 'TimeSegment1H', 'TradingSession',
+    'PhysicsScoreDecay', 'SpeedSlopeDecay', 'ZoneTransitioned',
+    'DataQualityScore', 'ValidationFlags'
+]
+missing = [col for col in required_v8 if col not in df_trades.columns]
 
 if missing:
     print(f"❌ MISSING COLUMNS: {', '.join(missing)}\n")
 else:
-    print("✅ All key columns present\n")
+    print(f"✅ All {len(required_v8)} key columns present\n")
+
+# === DUAL-ROW MODEL VALIDATION ===
+print("="*80)
+print("  🔄 DUAL-ROW MODEL VALIDATION (v8.0)")
+print("="*80 + "\n")
+
+if 'RowType' in df_trades.columns:
+    entry_rows = df_trades[df_trades['RowType'] == 'ENTRY']
+    exit_rows = df_trades[df_trades['RowType'] == 'EXIT']
+    
+    print(f"Total Rows:    {len(df_trades)}")
+    print(f"ENTRY rows:    {len(entry_rows)}")
+    print(f"EXIT rows:     {len(exit_rows)}")
+    
+    # Check if we have exactly 2 rows per trade
+    if len(entry_rows) == len(exit_rows):
+        print(f"✅ Perfect dual-row structure: {len(exit_rows)} trades × 2 rows each\n")
+    else:
+        print(f"⚠️  Row count mismatch: {len(entry_rows)} ENTRY vs {len(exit_rows)} EXIT\n")
+    
+    # Verify ENTRY rows have physics
+    entry_physics_count = (entry_rows['PhysicsScore'] > 0).sum()
+    print(f"ENTRY physics populated:  {entry_physics_count}/{len(entry_rows)} ({entry_physics_count/len(entry_rows)*100:.1f}%)")
+    
+    # Verify EXIT rows have decay analysis
+    if 'PhysicsScoreDecay' in df_trades.columns:
+        exit_decay_count = (exit_rows['PhysicsScoreDecay'] != 0).sum()
+        print(f"EXIT decay calculated:    {exit_decay_count}/{len(exit_rows)} ({exit_decay_count/len(exit_rows)*100:.1f}%)")
+    
+    # Check zone transitions
+    if 'ZoneTransitioned' in df_trades.columns:
+        zone_transitions = exit_rows['ZoneTransitioned'].sum()
+        print(f"Zone transitions:         {zone_transitions}/{len(exit_rows)} ({zone_transitions/len(exit_rows)*100:.1f}%)")
+        print(f"   ⚡ Winners with transitions: TBD (need profit filter)")
+    
+    print()
+else:
+    print("⚠️  RowType column not found - not using dual-row model\n")
 
 # === EA VERSION CHECK ===
 if 'EAName' in df_trades.columns and 'EAVersion' in df_trades.columns:
@@ -119,15 +165,21 @@ if 'EAName' in df_trades.columns and 'EAVersion' in df_trades.columns:
     print(f"EA Name:    {ea_name}")
     print(f"EA Version: {ea_version}\n")
 
-# === TRADE STATISTICS ===
+# === TRADE STATISTICS (EXIT ROWS ONLY) ===
 print("="*80)
-print("  📈 TRADE STATISTICS")
+print("  📈 TRADE STATISTICS (EXIT rows only)")
 print("="*80 + "\n")
 
-total = len(df_trades)
-pnl = df_trades['Profit'].sum() if 'Profit' in df_trades.columns else 0
-wins = len(df_trades[df_trades['Profit'] > 0]) if 'Profit' in df_trades.columns else 0
-losses = len(df_trades[df_trades['Profit'] < 0]) if 'Profit' in df_trades.columns else 0
+# Filter to EXIT rows for trade stats
+if 'RowType' in df_trades.columns:
+    trades_only = df_trades[df_trades['RowType'] == 'EXIT']
+else:
+    trades_only = df_trades  # Fallback if no RowType column
+
+total = len(trades_only)
+pnl = trades_only['Profit'].sum() if 'Profit' in trades_only.columns else 0
+wins = len(trades_only[trades_only['Profit'] > 0]) if 'Profit' in trades_only.columns else 0
+losses = len(trades_only[trades_only['Profit'] < 0]) if 'Profit' in trades_only.columns else 0
 win_rate = (wins / total * 100) if total > 0 else 0
 
 print(f"Total Trades:  {total}")
@@ -135,8 +187,8 @@ print(f"Wins:          {wins} ({win_rate:.1f}%)")
 print(f"Losses:        {losses} ({100-win_rate:.1f}%)")
 print(f"Total P&L:     ${pnl:.2f}")
 
-if 'Pips' in df_trades.columns:
-    avg_pips = df_trades['Pips'].mean()
+if 'Pips' in trades_only.columns:
+    avg_pips = trades_only['Pips'].mean()
     print(f"Avg Pips:      {avg_pips:.2f}")
 
 # === EXIT REASONS ===

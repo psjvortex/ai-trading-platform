@@ -3,7 +3,12 @@
 ## Repository
 https://github.com/psjvortex/ai-trading-platform
 
-## Current Status (November 14, 2025)
+## Current Status (November 26, 2025)
+
+### v5.0.0.0 - MASTER RELEASE ✅
+- **Major Upgrade**: Introduced granular Buy/Sell inputs for all key physics metrics.
+- **Optimization**: Allows independent tuning of Long and Short strategies.
+- **Integration**: Fully supported by the Web Dashboard Generator.
 
 ### Phase 2 Optimization - COMPLETE ✅
 **NAS100 M05 (2025 YTD)**

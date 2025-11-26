@@ -136,7 +136,7 @@ cp "/Users/patjohnston/Library/Application Support/net.metaquotes.wine.metatrade
 1. Right-click on backtest result in Strategy Tester
 2. Select "Report" → "Save as Detailed Report"
 3. Save as: `MTBacktest_Report_2.6.csv`
-4. Copy to: `/Users/patjohnston/Desktop/MT5 Backtest CSV's/`
+4. Copy to: `/Users/patjohnston/Desktop/MT5 EA Backtest CSV Folder/`
 
 ## ✅ Validation Steps
 
