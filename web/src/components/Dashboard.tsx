@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import Papa from 'papaparse'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download, Clock, Calendar, LayoutDashboard, Settings, LineChartIcon, Filter, ArrowUpDown } from 'lucide-react'
+import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download, Clock, Calendar, LayoutDashboard, Settings, LineChartIcon, Filter, ArrowUpDown, Upload } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Trade } from '../types'
 import { OptimizationFilter, optimizeStrategy } from '../lib/analytics'
@@ -13,10 +13,12 @@ import TemporalAnalysis from './TemporalAnalysis'
 import SessionAnalysis from './SessionAnalysis'
 import PerformanceSummary from './PerformanceSummary'
 import { ExcursionAnalysis } from './ExcursionAnalysis'
+import { DataLoader } from './DataLoader'
 
 export default function Dashboard() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
+  const [showDataLoader, setShowDataLoader] = useState(false)
   const [stats, setStats] = useState({
     totalTrades: 0,
     netProfit: 0,
@@ -52,6 +54,17 @@ export default function Dashboard() {
   const [shortFilters, setShortFilters] = useState<OptimizationFilter[]>([]);
   const [allFilters, setAllFilters] = useState<OptimizationFilter[]>([]);
 
+  // Handler for when data is loaded from DataLoader
+  const handleDataLoaded = useCallback((loadedTrades: Trade[]) => {
+    const tradesWithNetProfit = loadedTrades.map(t => ({
+      ...t,
+      NetProfit: (t.OUT_Profit_OP_01 || 0) + (t.OUT_Commission || 0) + (t.OUT_Swap || 0)
+    }))
+    setTrades(tradesWithNetProfit)
+    setShowDataLoader(false)
+    setLoading(false)
+  }, [])
+
   // Calculate optimized trades based on direction and filters
   const optimizedTrades = useMemo(() => {
     if (trades.length === 0) return [];
@@ -85,7 +98,22 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         const response = await fetch('/data/trades.csv')
+        
+        // Check if response is OK (200-299) 
+        if (!response.ok) {
+          console.log('No trades.csv found, showing DataLoader')
+          setLoading(false)
+          return
+        }
+        
         const csvText = await response.text()
+        
+        // Check if we got actual CSV data (not HTML error page)
+        if (csvText.startsWith('<!') || csvText.startsWith('<html')) {
+          console.log('Received HTML instead of CSV, showing DataLoader')
+          setLoading(false)
+          return
+        }
         
         Papa.parse(csvText, {
           header: true,
@@ -96,6 +124,10 @@ export default function Dashboard() {
               ...row,
               NetProfit: (row.OUT_Profit_OP_01 || 0) + (row.OUT_Commission || 0) + (row.OUT_Swap || 0)
             })) as Trade[]
+            
+            if (parsedTrades.length === 0) {
+              console.log('No trades in CSV, showing DataLoader')
+            }
             
             setTrades(parsedTrades)
             setLoading(false)
@@ -236,6 +268,11 @@ export default function Dashboard() {
     )
   }
 
+  // Show DataLoader if requested or no trades
+  if (showDataLoader || trades.length === 0) {
+    return <DataLoader onDataLoaded={handleDataLoaded} />
+  }
+
   // Prepare chart data
   let cumulative = 0
   const equityCurve = optimizedTrades.map((t, i) => {
@@ -255,6 +292,13 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-1">v4.2.0.6 Analysis • {stats.totalTrades} Trades • ML Optimization Mode • <span className="text-zinc-400">$10,000 Starting Balance</span></p>
         </div>
         <div className="flex gap-4">
+          <button 
+            onClick={() => setShowDataLoader(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Upload className="h-4 w-4" />
+            Load New Data
+          </button>
           <button 
             onClick={handleExportAll}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"

@@ -5,6 +5,16 @@ AI-powered trading platform featuring a custom MQL5 Expert Advisor (EA) called *
 
 ## Current Status (November 26, 2025)
 
+### Latest Session: DataLoader Implementation
+**See**: `/HANDOFF_2025-11-26_DataLoader.md` for full details
+
+#### New Features Added:
+- **Browser CSV Processor** (`/web/src/lib/csvProcessor.ts`) - Process CSVs in-browser
+- **DataLoader Component** (`/web/src/components/DataLoader.tsx`) - Drag-drop UI
+- **"Load from Default Location"** button - One-click load from `~/Desktop/MT5_Backtest_Files/`
+- **"Load New Data"** button in dashboard header
+- **Vite API endpoints** for filesystem access during dev
+
 ### v5.0.0.0 - MASTER RELEASE (Granular Inputs)
 **Status**: Production Ready / Master Version
 

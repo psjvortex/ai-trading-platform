@@ -182,7 +182,7 @@ export default function OptimizationEngine({
     });
 
     // 3. Filter for Optimized (direction + filters)
-    let optimizedTradeIds: Set<string>;
+    let optimizedTradeIds: Set<string | number>;
     if (direction === 'All') {
        // For All, we need to check if a trade passed its respective filter set
        optimizedTradeIds = new Set([...longRes.trades, ...shortRes.trades].map(t => t.IN_Trade_ID));
