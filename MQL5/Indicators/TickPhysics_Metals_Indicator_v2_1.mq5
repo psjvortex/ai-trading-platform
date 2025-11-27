@@ -472,7 +472,21 @@ int OnCalculate(const int total, const int prev, const datetime &time[],
       refPts *= InpCryptoVolMultiplier;
    }
 
-   int start = (prev > 0) ? (total - prev) : (total - 1);
+   // FIX: On first calculation (prev==0) or when prev is invalid, recalculate ALL bars
+   // This fixes the "compressed indicator" issue on short timeframes
+   int start;
+   if(prev <= 0 || prev > total)
+   {
+      // Full recalculation - initialize buffers
+      start = total - 1;
+   }
+   else
+   {
+      // Incremental update - but ensure we recalculate enough bars
+      // to avoid visual artifacts (minimum 10 bars or the difference)
+      start = MathMax(total - prev + 5, 10);
+      start = MathMin(start, total - 1);  // Don't exceed available bars
+   }
 
    CalculateATRAverage(start, total);
    ClearOverlays(start, total);

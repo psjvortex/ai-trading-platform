@@ -1,19 +1,19 @@
 //+------------------------------------------------------------------+
-//|                    TP_Integrated_EA_Crossover_5_0_0_0.mq5        |
+//|                    TP_Integrated_EA_Crossover_5_0_0_2.mq5        |
 //|                      TickPhysics Institutional Framework (ITPF)  |
 //|                                                                  |
 //+------------------------------------------------------------------+
 
 // #property copyright "Copyright 2025, QuanAlpha"
 // #property link      "https://github.com/quanalpha/tickphysics"
-// #property description "v5.0.0.0 EA - MASTER RELEASE - Granular Buy/Sell Inputs"
+// #property description "v5.0.0.2 EA - MASTER RELEASE - Granular Buy/Sell Inputs"
 
 // EA Version Info (for CSV tracking)
 #define EA_NAME "TP_Integrated_EA"
-#define EA_VERSION "5.0.0.0_MASTER"
+#define EA_VERSION "5.0.0.2_MASTER"
 
-input int MagicNumber = 500000;                        // EA magic number
-input string TradeComment = "TP_Integrated 5_0_0_0";      // Trade comment
+input int MagicNumber = 500002;                        // EA magic number
+input string TradeComment = "TP_Integrated 5_0_0_2";      // Trade comment
 
 
 // Indicator Version Selection
@@ -39,7 +39,7 @@ enum INDICATOR_VERSION
 
 // === Risk Management ===
 input group "💰 Risk Management"
-input double      RiskPercentPerTrade     = 10.0;         // Risk per trade (% of balance)
+input double      RiskPercentPerTrade     = 1.0;         // Risk per trade (% of balance)
 input double      MaxDailyRisk            = 90.0;        // Max daily risk (% of balance)
 input int         MaxConcurrentTrades     = 10;           // Max concurrent positions
 
@@ -48,7 +48,7 @@ input group "📊 Trade Parameters (Asset-Adaptive)"
 input bool        UseAssetAdaptiveSLTP    = true;            // Enable asset-specific SL/TP defaults
 input double      RiskRewardRatio         = 1.0;             // TP:SL ratio (1.0=1:1, 2.0=2:1, 0.5=1:2)
 input int         StopLossPips_Forex      = 8;               // SL Forex (pips) - TP calculated from ratio
-input int         StopLossPips_Indices    = 5000;            // SL Indices (pips) - TP calculated from ratio
+input int         StopLossPips_Indices    = 1000;            // SL Indices (pips) - TP calculated from ratio
 input int         StopLossPips_Crypto     = 5000;            // SL Crypto (pips) - TP calculated from ratio
 input int         StopLossPips_Metal      = 400;             // SL Metals (pips) - TP calculated from ratio
 input bool        UseTrailingStop         = false;           // Enable trailing stop
@@ -73,10 +73,10 @@ input ENUM_MA_METHOD       MA_Method                  = MODE_SMMA;       // MA c
 input ENUM_APPLIED_PRICE   MA_Price                   = PRICE_CLOSE;     // MA price type
 input double               MinMA1_MA2_Distance        = 0.0;             // Min distance MA1-MA2 (points, 0=disabled)
 input double               MinMA2_MA3_Distance        = 0.0;             // Min distance MA2-MA3 (points, 0=disabled)
-input color                MA1_Color                  = clrLime;         // MA1 color (fastest)
-input color                MA2_Color                  = clrYellow;       // MA2 color (medium)
-input color                MA3_Color                  = clrRed;          // MA3 color (slowest)
-input int                  MA_LineWidth               = 2;               // MA line width
+input color                MA1_Color                  = clrBlue;         // MA1 color (fastest)
+input color                MA2_Color                  = clrWhite;       // MA2 color (medium)
+input color                MA3_Color                  = clrYellow;          // MA3 color (slowest)
+input int                  MA_LineWidth               = 3;               // MA line width
 
 // === Signal Filters (v4.0 OPTIMIZED) ===
 input group "🎯 Physics Filters v4.0"
@@ -88,7 +88,7 @@ input bool                 UseRegimeFilter            = true;           // Filte
 
 // === Spread Filter (v4.6) ===
 input group "📊 Spread Filter (Cost Control)"
-input bool                 UseSpreadFilter            = true;            // Enable spread filtering
+input bool                 UseSpreadFilter            = false;            // Enable spread filtering
 input double               MaxSpreadPips              = 25.0;             // Max spread allowed (pips)
 input bool                 UseAdaptiveSpread          = false;           // Use ATR-based adaptive spread limit
 input double               MaxSpreadATRMultiple       = 0.5;             // Max spread as % of ATR (0.5 = 50% of ATR)
@@ -702,8 +702,8 @@ string GetIndicatorName(INDICATOR_VERSION version)
       {
          if(StringFind(sym, cryptoTickers[i]) >= 0)
          {
-            Print(StringFormat("📊 Auto-detected CRYPTO symbol (%s): Using TickPhysics_Crypto_Indicator_v2_1", cryptoTickers[i]));
-            return "TickPhysics_Crypto_Indicator_v2_1";
+            Print(StringFormat("📊 Auto-detected CRYPTO symbol (%s): Using TickPhysics_Crypto_Indicator_v3_0", cryptoTickers[i]));
+            return "TickPhysics_Crypto_Indicator_v3_0";
          }
       }
       
@@ -711,8 +711,8 @@ string GetIndicatorName(INDICATOR_VERSION version)
       {
          if(StringFind(sym, cryptoNames[i]) >= 0)
          {
-            Print(StringFormat("📊 Auto-detected CRYPTO symbol (%s): Using TickPhysics_Crypto_Indicator_v2_1", cryptoNames[i]));
-            return "TickPhysics_Crypto_Indicator_v2_1";
+            Print(StringFormat("📊 Auto-detected CRYPTO symbol (%s): Using TickPhysics_Crypto_Indicator_v3_0", cryptoNames[i]));
+            return "TickPhysics_Crypto_Indicator_v3_0";
          }
       }
       
@@ -725,8 +725,8 @@ string GetIndicatorName(INDICATOR_VERSION version)
          StringFind(sym, "HK50") >= 0 || StringFind(sym, "AUS200") >= 0 ||
          StringFind(sym, "CAC") >= 0 || StringFind(sym, "STOXX") >= 0)
       {
-         Print("📊 Auto-detected INDICES symbol: Using TickPhysics_Indices_Indicator_v2_1");
-         return "TickPhysics_Indices_Indicator_v2_1";
+         Print("📊 Auto-detected INDICES symbol: Using TickPhysics_Indices_Indicator_v3_0");
+         return "TickPhysics_Indices_Indicator_v3_0";
       }
       
       // Metals detection (XAUUSD, XAGUSD, Gold, Silver, Platinum, Palladium, Copper)
@@ -736,8 +736,8 @@ string GetIndicatorName(INDICATOR_VERSION version)
          StringFind(sym, "XPD") >= 0 || StringFind(sym, "PALLADIUM") >= 0 ||
          StringFind(sym, "XCU") >= 0 || StringFind(sym, "COPPER") >= 0)
       {
-         Print("📊 Auto-detected METALS symbol: Using TickPhysics_Metals_Indicator_v2_1");
-         return "TickPhysics_Metals_Indicator_v2_1";
+         Print("📊 Auto-detected METALS symbol: Using TickPhysics_Metals_Indicator_v3_0");
+         return "TickPhysics_Metals_Indicator_v3_0";
       }
       
       // Forex detection (check if it's a currency pair)
@@ -749,15 +749,15 @@ string GetIndicatorName(INDICATOR_VERSION version)
          {
             if(StringFind(sym, currencies[i]) >= 0)
             {
-               Print("📊 Auto-detected FOREX symbol: Using TickPhysics_Forex_Indicator_v2_1");
-               return "TickPhysics_Forex_Indicator_v2_1";
+               Print("📊 Auto-detected FOREX symbol: Using TickPhysics_Forex_Indicator_v3_0");
+               return "TickPhysics_Forex_Indicator_v3_0";
             }
          }
       }
       
       // Default to Forex if can't determine
       Print("⚠️ Could not auto-detect symbol type, defaulting to FOREX indicator");
-      return "TickPhysics_Forex_Indicator_v2_1";
+      return "TickPhysics_Forex_Indicator_v3_0";
    }
    
    // Manual selection
@@ -780,12 +780,12 @@ string GetIndicatorName(INDICATOR_VERSION version)
          return "TickPhysics_Metals_Indicator_v3_0";
          
       case INDICATOR_UNIVERSAL:
-         Print("📊 Manual selection: Using TickPhysics_Universal_Indicator_v2_2 (RECOMMENDED)");
-         return "TickPhysics_Universal_Indicator_v2_2";
+         Print("📊 Manual selection: Using TickPhysics_Universal_Indicator_v3_0 (RECOMMENDED)");
+         return "TickPhysics_Universal_Indicator_v3_0";
          
       default:
          Print("⚠️ Unknown indicator version, defaulting to UNIVERSAL");
-         return "TickPhysics_Universal_Indicator_v2_2";
+         return "TickPhysics_Universal_Indicator_v3_0";
    }
 }
 

@@ -1,11 +1,11 @@
 //+------------------------------------------------------------------+
-//| TickPhysics_Crypto_Indicator_v2_1.mq5                            |
-//| Crypto-Optimized Elite Momentum Physics Engine                   |
-//| Version 2.1 - Optimized for Bitcoin, Ethereum, Altcoins         |
-//| Settings tuned for high-volatility cryptocurrency markets       |
+//| TickPhysics_Universal_Indicator_v3_0.mq5                         |
+//| Universal Multi-Asset Physics Engine                             |
+//| Version 3.0 - Enhanced: All Asset Types Support                  |
+//| FIX: Improved start calculation for short timeframe rendering    |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, QuanAlpha"
-#property version "2.10"
+#property version "3.00"
 #property strict
 #property indicator_separate_window
 #property indicator_plots 16
@@ -93,42 +93,41 @@
 #property indicator_width16 2
 
 //============================= INPUTS ==============================//
-input group "=== CRYPTO OPTIMIZED SETTINGS ==="
-input bool   InpCryptoMode = false;  // Enable Crypto Optimizations
-input string InpAsset = "BTCUSD";   // Asset (BTCUSD/ETHUSD/BTCUSDT)
+input group "=== UNIVERSAL SETTINGS ==="
+input bool   InpUniversalMode = true;  // Enable Universal Auto-Detection
 
 input group "=== Physics Core ==="
-input int InpSpeedPeriod = 5;       // Speed Period (crypto: 5 vs forex: 3)
-input int InpSpeedSmooth = 8;       // Speed Smoothing (crypto: 8 vs forex: 5)
-input double InpSpeedMultiplier = 150.0;  // Speed Multiplier (crypto: 150)
-input double InpAccelMultiplier = 250.0;  // Accel Multiplier (crypto: 250)
+input int InpSpeedPeriod = 5;       // Speed Period
+input int InpSpeedSmooth = 8;       // Speed Smoothing
+input double InpSpeedMultiplier = 150.0;  // Speed Multiplier
+input double InpAccelMultiplier = 250.0;  // Accel Multiplier
 
 input group "=== ATR Adaptive Scaling ==="
-input int InpATRPeriod = 20;        // ATR Period (crypto: 20 vs forex: 14)
+input int InpATRPeriod = 20;        // ATR Period
 input bool InpAutoRefPoints = true;
-input double InpATRRefPoints = 2000.0;  // Crypto default
+input double InpATRRefPoints = 2000.0;  // Default reference
 input double InpATRRef_Crypto = 2000.0; // BTC ~2000 points
 input double InpATRRef_Forex = 100.0;
 input double InpATRRef_Index = 250.0;
 
 input group "=== Momentum & Quality ==="
-input double InpSpeedWeight = 0.55;     // Speed Weight (crypto: 0.55)
-input double InpAccelWeight = 0.45;     // Accel Weight (crypto: 0.45)
+input double InpSpeedWeight = 0.55;     // Speed Weight
+input double InpAccelWeight = 0.45;     // Accel Weight
 input int InpMomentumSmooth = 5;        // Momentum Smoothing
-input double InpMomentumScale = 2.5;    // Momentum Scale (crypto: 2.5)
-input int InpTrendQualityPeriod = 15;   // Trend Quality Period (crypto: 15)
+input double InpMomentumScale = 2.5;    // Momentum Scale
+input int InpTrendQualityPeriod = 15;   // Trend Quality Period
 input double InpQualityMagWeight = 0.25; // Quality Magnitude Weight
 
 input group "=== Distance & Jerk ==="
-input int InpDistanceROCPeriod = 7;     // Distance ROC Period (crypto: 7)
+input int InpDistanceROCPeriod = 7;     // Distance ROC Period
 input double InpDistanceROCScale = 75.0; // Distance ROC Scale
-input int InpJerkSmooth = 6;            // Jerk Smoothing (crypto: 6)
+input int InpJerkSmooth = 6;            // Jerk Smoothing
 
 input group "=== Thresholds ==="
 input bool InpUseAdaptiveThresh = true;
-input double InpThresholdATRMult = 1.2;  // Threshold ATR Mult (crypto: 1.2)
-input double InpHighThreshold = 75.0;    // High Threshold (crypto: 75)
-input double InpLowThreshold = -75.0;    // Low Threshold (crypto: -75)
+input double InpThresholdATRMult = 1.2;  // Threshold ATR Mult
+input double InpHighThreshold = 75.0;    // High Threshold
+input double InpLowThreshold = -75.0;    // Low Threshold
 input double InpVolHighMult = 1.8;       // Vol High Multiplier
 
 input group "=== Signal Confluence ==="
@@ -136,7 +135,7 @@ input bool InpShowConfluence = true;
 input double InpConfluenceQualMin = 65.0;  // Confluence Quality Min
 input double InpConfluenceSpeedMin = 0.35; // Confluence Speed Min
 
-input group "=== NEW v2.0: Tick Entropy ==="
+input group "=== Tick Entropy ==="
 input bool InpShowEntropy = true;           // Show Entropy Plot
 input int InpEntropyWindow = 50;            // Entropy Calculation Window
 input double InpEntropyThreshold = 2.5;     // Chaos Threshold (for EA filter)
@@ -144,19 +143,19 @@ input double InpEntropyThreshold = 2.5;     // Chaos Threshold (for EA filter)
 input group "=== Volatility Regime ==="
 input bool InpShowVolRegime = true;
 input double InpVolLowThreshold = 0.6;   // Vol Low Threshold
-input double InpVolHighThreshold = 1.5;  // Vol High Threshold (crypto: 1.5)
+input double InpVolHighThreshold = 1.5;  // Vol High Threshold
 
 input group "=== Divergence Detection ==="
 input bool InpShowDivergence = true;
-input int InpDivergenceLookback = 25;    // Divergence Lookback (crypto: 25)
-input double InpDivergenceMinDiff = 15.0; // Min Difference (crypto: 15)
+input int InpDivergenceLookback = 25;    // Divergence Lookback
+input double InpDivergenceMinDiff = 15.0; // Min Difference
 input double InpDivergenceSlopeThresh = 0.15; // Slope Threshold
 
 input group "=== Trading Zones ==="
 input bool InpShowTradingZones = true;
-input double InpZoneQualityMin = 65.0;   // Zone Quality Min (crypto: 65)
+input double InpZoneQualityMin = 65.0;   // Zone Quality Min
 input bool InpAdaptiveZones = true;
-input int InpZoneHistoryPeriod = 120;    // Zone History (crypto: 120)
+input int InpZoneHistoryPeriod = 120;    // Zone History
 input double InpZonePercentile = 70.0;   // Zone Percentile
 
 input group "=== Plot Toggles ==="
@@ -168,19 +167,19 @@ input bool InpShowDistanceROC = true;
 input bool InpShowJerk = true;
 
 input group "=== HUD Display ==="
-input bool InpShowHUD = true;
+input bool InpShowHUD = false;
 input int InpHUDCorner = 0;
 input int InpHUDX = 6;
 input int InpHUDY = 14;
-input bool InpShowAlerts = false;        // Enable alerts for crypto
+input bool InpShowAlerts = false;
 
 input group "=== Theme ==="
 input bool InpDarkTheme = true;
 input bool InpColorBlindFriendly = false;
 
-input group "=== Crypto-Specific ==="
+input group "=== Asset-Specific ==="
 input bool InpHighFreqMode = false;     // High-frequency mode (M1/M5)
-input double InpCryptoVolMultiplier = 1.5; // Extra vol adjustment for crypto
+input double InpVolMultiplier = 1.5;    // Extra vol adjustment
 
 //============================= BUFFERS ==============================//
 double SpeedBuffer[], AccelBuffer[], AccelColors[], MomentumBuffer[];
@@ -189,31 +188,43 @@ double HighThresholdBuffer[], LowThresholdBuffer[], ZeroLineBuffer[];
 double QualityGlowBuffer[], MomSpikeBuffer[], MomSpikeColors[];
 double ConfluenceBuffer[], ConfluenceColors[], VolRegimeBuffer[], VolRegimeColors[];
 double DivergenceBuffer[], DivergenceColors[], TradingZoneBuffer[], ZoneColors[];
-double EntropyBuffer[];        // NEW v2.0
+double EntropyBuffer[];
 double DistanceBuffer[], RawSpeedBuffer[], BiasBuffer[];
 double PriceHighBuffer[], PriceLowBuffer[];
 double CustomATRBuffer[];
 double CustomATRAvgBuffer[];
 double ZoneQualityHistory[];
-double DivergenceHistory[];    // NEW v2.0
+double DivergenceHistory[];
 
 int atrHandle = INVALID_HANDLE;
-string HUD_NAME = "TPX_Crypto_HUD_v2";
-string HUD_BG_NAME = "TPX_Crypto_HUD_BG_v2";
+string HUD_NAME = "TPX_Universal_HUD_v3";
+string HUD_BG_NAME = "TPX_Universal_HUD_BG_v3";
 datetime lastAlertTime = 0;
-int alertCooldown = 60; // 60 seconds between alerts
+int alertCooldown = 60;
 
 //============================= HELPERS ==============================//
 double AutoRefPoints()
 {
    if(!InpAutoRefPoints) return InpATRRefPoints;
    
-   // Crypto-specific detection
    string sym = _Symbol;
    StringToUpper(sym);
    
-   if(StringFind(sym,"BTC")!=-1 || StringFind(sym,"ETH")!=-1) 
+   // Crypto detection
+   if(StringFind(sym,"BTC")!=-1 || StringFind(sym,"ETH")!=-1 || 
+      StringFind(sym,"XRP")!=-1 || StringFind(sym,"SOL")!=-1) 
       return InpATRRef_Crypto;
+   
+   // Metals detection
+   if(StringFind(sym,"XAU")!=-1 || StringFind(sym,"GOLD")!=-1 ||
+      StringFind(sym,"XAG")!=-1 || StringFind(sym,"SILVER")!=-1)
+      return InpATRRef_Index * 2.0;  // Gold has higher volatility
+   
+   // Indices detection
+   if(StringFind(sym,"NAS")!=-1 || StringFind(sym,"US30")!=-1 ||
+      StringFind(sym,"SPX")!=-1 || StringFind(sym,"DAX")!=-1 ||
+      StringFind(sym,"FTSE")!=-1 || StringFind(sym,"NDX")!=-1)
+      return InpATRRef_Index;
    
    long mode; 
    SymbolInfoInteger(_Symbol, SYMBOL_TRADE_CALC_MODE, mode);
@@ -246,7 +257,7 @@ void TriggerAlert(string message)
    datetime currentTime = TimeCurrent();
    if(currentTime - lastAlertTime < alertCooldown) return;
    
-   Alert("🚀 TickPhysics Crypto: ", message);
+   Alert("🚀 TickPhysics Universal: ", message);
    lastAlertTime = currentTime;
 }
 
@@ -282,7 +293,7 @@ int OnInit()
    SetIndexBuffer(idx++, DivergenceColors, INDICATOR_COLOR_INDEX);
    SetIndexBuffer(idx++, TradingZoneBuffer, INDICATOR_DATA);
    SetIndexBuffer(idx++, ZoneColors, INDICATOR_COLOR_INDEX);
-   SetIndexBuffer(idx++, EntropyBuffer, INDICATOR_DATA);  // NEW v2.0
+   SetIndexBuffer(idx++, EntropyBuffer, INDICATOR_DATA);
    SetIndexBuffer(idx++, DistanceBuffer, INDICATOR_CALCULATIONS);
    SetIndexBuffer(idx++, RawSpeedBuffer, INDICATOR_CALCULATIONS);
    SetIndexBuffer(idx++, BiasBuffer, INDICATOR_CALCULATIONS);
@@ -291,7 +302,7 @@ int OnInit()
    SetIndexBuffer(idx++, CustomATRAvgBuffer, INDICATOR_CALCULATIONS);
    SetIndexBuffer(idx++, CustomATRBuffer, INDICATOR_CALCULATIONS);
    SetIndexBuffer(idx++, ZoneQualityHistory, INDICATOR_CALCULATIONS);
-   SetIndexBuffer(idx++, DivergenceHistory, INDICATOR_CALCULATIONS);  // NEW v2.0
+   SetIndexBuffer(idx++, DivergenceHistory, INDICATOR_CALCULATIONS);
 
    // Set all arrays as series
    ArraySetAsSeries(SpeedBuffer, true);
@@ -324,8 +335,8 @@ int OnInit()
    ArraySetAsSeries(CustomATRAvgBuffer, true);
    ArraySetAsSeries(CustomATRBuffer, true);
    ArraySetAsSeries(ZoneQualityHistory, true);
-   ArraySetAsSeries(EntropyBuffer, true);          // NEW v2.0
-   ArraySetAsSeries(DivergenceHistory, true);      // NEW v2.0
+   ArraySetAsSeries(EntropyBuffer, true);
+   ArraySetAsSeries(DivergenceHistory, true);
 
    // Set color indexes
    PlotIndexSetInteger(1, PLOT_COLOR_INDEXES, 3);
@@ -384,10 +395,10 @@ int OnInit()
    if(!InpShowVolRegime) TogglePlot(12, false);
    if(!InpShowDivergence) TogglePlot(13, false);
    if(!InpShowTradingZones) TogglePlot(14, false);
-   if(!InpShowEntropy) TogglePlot(15, false);  // NEW v2.0
+   if(!InpShowEntropy) TogglePlot(15, false);
 
-   string modeName = InpCryptoMode ? " [CRYPTO]" : " [STANDARD]";
-   IndicatorSetString(INDICATOR_SHORTNAME, "TickPhysics Crypto v1.0" + modeName);
+   string modeName = InpUniversalMode ? " [UNIVERSAL]" : " [STANDARD]";
+   IndicatorSetString(INDICATOR_SHORTNAME, "TickPhysics Universal v3.0" + modeName);
    IndicatorSetInteger(INDICATOR_DIGITS, 2);
 
    atrHandle = iATR(_Symbol, _Period, InpATRPeriod);
@@ -398,7 +409,6 @@ int OnInit()
 
    if(InpShowHUD && ObjectFind(0, HUD_NAME) == -1)
    {
-      // Create background rectangle first
       if(ObjectFind(0, HUD_BG_NAME) == -1)
       {
          ObjectCreate(0, HUD_BG_NAME, OBJ_RECTANGLE_LABEL, 0, 0, 0);
@@ -416,7 +426,6 @@ int OnInit()
          ObjectSetInteger(0, HUD_BG_NAME, OBJPROP_HIDDEN, true);
       }
       
-      // Create HUD text label on top of background
       ObjectCreate(0, HUD_NAME, OBJ_LABEL, 0, 0, 0);
       ObjectSetInteger(0, HUD_NAME, OBJPROP_CORNER, CORNER_LEFT_UPPER);
       ObjectSetInteger(0, HUD_NAME, OBJPROP_XDISTANCE, 10);
@@ -428,9 +437,9 @@ int OnInit()
       ObjectSetInteger(0, HUD_NAME, OBJPROP_BACK, false);
    }
 
-   Print("✅ TickPhysics Crypto Weekend v1.0 initialized successfully!");
+   Print("✅ TickPhysics Universal v3.0 initialized successfully!");
    Print("📊 Asset: ", _Symbol);
-   Print("⚡ Crypto mode: ", InpCryptoMode ? "ENABLED" : "DISABLED");
+   Print("⚡ Universal mode: ", InpUniversalMode ? "ENABLED" : "DISABLED");
    Print("📈 Trading timeframe: ", EnumToString(_Period));
    
    return(INIT_SUCCEEDED);
@@ -466,9 +475,9 @@ int OnCalculate(const int total, const int prev, const datetime &time[],
 
    double refPts = AutoRefPoints();
    
-   // Apply crypto volatility multiplier
-   if(InpCryptoMode) {
-      refPts *= InpCryptoVolMultiplier;
+   // Apply volatility multiplier if in universal mode
+   if(InpUniversalMode) {
+      refPts *= InpVolMultiplier;
    }
 
    // FIX: On first calculation (prev==0) or when prev is invalid, recalculate ALL bars
@@ -521,6 +530,7 @@ int OnCalculate(const int total, const int prev, const datetime &time[],
       CalculateConfluence(i, total, highThr);
       CalculateVolRegime(i, atr_val, atr_avg_val);
       CalculateTradingZone(i, total);
+      CalculateEntropy(i, total, tick_volume);
 
       if(i < ArraySize(PriceHighBuffer) && i < ArraySize(PriceLowBuffer))
       {
@@ -536,7 +546,7 @@ int OnCalculate(const int total, const int prev, const datetime &time[],
    return total;
 }
 
-// Calculation functions (same as original but with crypto adaptations)
+// Calculation functions
 void CalculateATRAverage(int start, int total)
 {
    for(int i = start; i >= 0; i--)
@@ -779,6 +789,63 @@ void CalculateTradingZone(int i, int total)
    }
 }
 
+void CalculateEntropy(int i, int total, const long &tick_volume[])
+{
+   if(!InpShowEntropy) return;
+   if(i >= total - InpEntropyWindow) 
+   {
+      EntropyBuffer[i] = 0.0;
+      return;
+   }
+   if(i >= ArraySize(EntropyBuffer)) return;
+   
+   double mean = 0.0;
+   int validCount = 0;
+   
+   for(int j = 0; j < InpEntropyWindow; j++)
+   {
+      int idx = i + j;
+      if(idx >= total || idx >= ArraySize(tick_volume)) break;
+      
+      mean += (double)tick_volume[idx];
+      validCount++;
+   }
+   
+   if(validCount == 0)
+   {
+      EntropyBuffer[i] = 0.0;
+      return;
+   }
+   
+   mean /= validCount;
+   
+   double variance = 0.0;
+   for(int j = 0; j < InpEntropyWindow; j++)
+   {
+      int idx = i + j;
+      if(idx >= total || idx >= ArraySize(tick_volume)) break;
+      
+      double diff = (double)tick_volume[idx] - mean;
+      variance += diff * diff;
+   }
+   
+   variance /= validCount;
+   
+   if(mean > 0)
+   {
+      double stdDev = MathSqrt(variance);
+      double entropy = stdDev / mean;
+      EntropyBuffer[i] = entropy;
+      
+      if(i < ArraySize(DivergenceHistory))
+         DivergenceHistory[i] = entropy;
+   }
+   else
+   {
+      EntropyBuffer[i] = 0.0;
+   }
+}
+
 void DetectDivergence(int start, int total, const double &high[], const double &low[])
 {
    if(InpShowDivergence)
@@ -871,8 +938,6 @@ void UpdateHUD(int total)
          zoneStr = (zone == 0 ? "🟢 BULL" : (zone == 1 ? "🔴 BEAR" : (zone == 2 ? "🟡 TRANS" : "⚫ AVOID")));
       }
       
-      // Build cleaner HUD with visual separators
-      string separator = "─────────────────────────────────";
       string hud = StringFormat(
          "╔════════════════════════════════╗\n"
          "║  TICKPHYSICS - %s    \n"
@@ -894,7 +959,6 @@ void UpdateHUD(int total)
       
       ObjectSetString(0, HUD_NAME, OBJPROP_TEXT, hud);
       
-      // Set color based on bias
       color hudClr = clrWhite;
       if(hudIdx < ArraySize(BiasBuffer))
       {
@@ -916,7 +980,6 @@ void CheckTradingSignals(int total)
    int idx = 1;
    if(idx >= total) return;
    
-   // Check for strong confluence signals
    if(idx < ArraySize(ConfluenceBuffer) && idx < ArraySize(TrendQualityBuffer))
    {
       if(ConfluenceBuffer[idx] >= 80.0 && TrendQualityBuffer[idx] >= 75.0)
@@ -928,7 +991,6 @@ void CheckTradingSignals(int total)
       }
    }
    
-   // Check for divergence
    if(idx < ArraySize(DivergenceBuffer) && DivergenceBuffer[idx] != EMPTY_VALUE)
    {
       string divType = (idx < ArraySize(DivergenceColors) && DivergenceColors[idx] == 0) ? 
@@ -937,7 +999,6 @@ void CheckTradingSignals(int total)
                                SymbolInfoDouble(_Symbol, SYMBOL_BID)));
    }
    
-   // Check for momentum threshold crosses
    if(idx < ArraySize(MomentumBuffer) && idx < ArraySize(HighThresholdBuffer))
    {
       if(idx + 1 < ArraySize(MomentumBuffer))
@@ -965,6 +1026,6 @@ void OnDeinit(const int reason)
    if(atrHandle != INVALID_HANDLE)
       IndicatorRelease(atrHandle);
       
-   Print("TickPhysics Crypto v2.1 deinitialized. Reason: ", reason);
+   Print("TickPhysics Universal v3.0 deinitialized. Reason: ", reason);
 }
 //+------------------------------------------------------------------+
