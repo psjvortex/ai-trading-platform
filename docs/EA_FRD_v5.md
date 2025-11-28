@@ -9,6 +9,19 @@
 
 ---
 
+## 🔄 UPDATE PROTOCOL
+
+**To update this document, simply type: `update FRD`**
+
+When triggered, Claude will:
+1. Read this FRD document
+2. Check recent git commits (`git log -5 --oneline`)
+3. Review changes made in the current session
+4. Update relevant sections (version history, inputs, handoff notes, etc.)
+5. Commit the updated FRD
+
+---
+
 ## Table of Contents
 1. [System Overview](#1-system-overview)
 2. [EA Version History](#2-ea-version-history)
