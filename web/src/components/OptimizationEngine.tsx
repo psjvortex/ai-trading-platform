@@ -1184,12 +1184,12 @@ export default function OptimizationEngine({
                           {/* Ceiling (Max) Threshold Row - Only for Entry metrics */}
                           {isEntryMetric && (
                             <div className="flex items-center gap-2">
-                              <label className="flex items-center gap-1 cursor-pointer">
+                              <label className="flex items-center gap-1 cursor-pointer hover:bg-orange-500/10 rounded px-1 py-0.5">
                                 <input 
                                   type="checkbox"
                                   checked={filter.useCeiling || false}
                                   onChange={(e) => updateFilter(idx, { useCeiling: e.target.checked })}
-                                  className="w-3 h-3"
+                                  className="w-4 h-4 accent-orange-500 cursor-pointer"
                                 />
                                 <span className="text-xs text-orange-400 w-10">Max ≤</span>
                               </label>
