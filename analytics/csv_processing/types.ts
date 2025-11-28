@@ -567,15 +567,33 @@ export interface OptimizationRunMeta {
 export function parseOptimizationFilename(filename: string): OptimizationRunMeta | null {
   // Pattern: TP_{SYMBOL}_{TF}_{BROKER}_{PASS}_{SAMPLE}_{DATERANGE}_v{VERSION}_{TYPE}.csv
   // Also handles optional timestamp for live: TP_NAS100_M05_FTMO_BL_IS_2025JanOct_11271430_v5.0.0.3_trades.csv
+  // Also handles OOS format: TP_NAS100_M05_FXTM_BL_OOS1-BL_2024Jan_2024Mar_v5.0.0.3_trades.csv
   
-  const regex = /^TP_([A-Z0-9]+)_([A-Z0-9]+)_([A-Z0-9]+)_(BL|P1|P2|P3|FN)_(IS|OOS1|OOS2|OOS3)_([A-Za-z0-9_]+)_v([\d.]+)_(trades|signals)\.csv$/;
+  // Try standard format first: BL_IS or P1_IS
+  const regexStandard = /^TP_([A-Z0-9]+)_([A-Z0-9]+)_([A-Z0-9]+)_(BL|P1|P2|P3|FN)_(IS|OOS1|OOS2|OOS3)_([A-Za-z0-9_]+)_v([\d.]+)_(trades|signals)\.csv$/;
   
-  const match = filename.match(regex);
+  // Try OOS format: BL_OOS1-BL (pass_sample-pass pattern)
+  const regexOOS = /^TP_([A-Z0-9]+)_([A-Z0-9]+)_([A-Z0-9]+)_(BL|P1|P2|P3|FN)_(OOS\d)[-_](BL|P1|P2|P3|FN)_([A-Za-z0-9_]+)_v([\d.]+)_(trades|signals)\.csv$/;
+  
+  let match = filename.match(regexStandard);
+  let isOOSFormat = false;
+  
+  if (!match) {
+    match = filename.match(regexOOS);
+    isOOSFormat = true;
+  }
+  
   if (!match) {
     return null; // Not a v5.0.0.3+ format filename
   }
   
-  const [, symbol, timeframe, broker, pass, sampleType, dateRange, version, fileType] = match;
+  let symbol: string, timeframe: string, broker: string, pass: string, sampleType: string, dateRange: string, version: string, fileType: string;
+  
+  if (isOOSFormat) {
+    [, symbol, timeframe, broker, pass, sampleType, , dateRange, version, fileType] = match;
+  } else {
+    [, symbol, timeframe, broker, pass, sampleType, dateRange, version, fileType] = match;
+  }
   
   // Map pass to number
   const passMap: Record<string, number> = { 'BL': 0, 'P1': 1, 'P2': 2, 'P3': 3, 'FN': 4 };
@@ -619,6 +637,8 @@ export interface ProcessedDataset {
       eaSignalsCSV: string;
     };
     optimizationRun?: OptimizationRunMeta;  // New: parsed from filename
+    eaInputs?: Record<string, { value: string | number | boolean; type: string }>;  // EA filter input values
+    allEaInputs?: Record<string, { name: string; type: string; value: string | number | boolean; comment: string; group: string }>;  // All EA inputs with full metadata
   };
   trades: ProcessedTradeData[];
   statistics: ProcessingStatistics;

@@ -1,0 +1,98 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-11-28",
+  "runs": [
+    {
+      "id": "BL_IS",
+      "pass": "BL",
+      "passNumber": 0,
+      "sampleType": "IS",
+      "isInSample": true,
+      "dateRange": "2025JanOct",
+      "symbol": "NAS100",
+      "timeframe": "M05",
+      "broker": "FXTM",
+      "eaVersion": "5.0.0.3",
+      "filename": "BL_IS.json",
+      "processed": "2025-11-28",
+      "tradeCount": 2603,
+      "netProfit": -7133.99,
+      "winRate": null,
+      "profitFactor": null
+    },
+    {
+      "id": "BL_OOS1-BL",
+      "pass": "BL",
+      "passNumber": 0,
+      "sampleType": "OOS1-BL",
+      "isInSample": false,
+      "dateRange": "2024JanMar",
+      "symbol": "NAS100",
+      "timeframe": "M05",
+      "broker": "FXTM",
+      "eaVersion": "5.0.0.3",
+      "filename": "BL_OOS1-BL.json",
+      "processed": "2025-11-28",
+      "tradeCount": 681,
+      "netProfit": -2948.60,
+      "winRate": null,
+      "profitFactor": null
+    },
+    {
+      "id": "BL_OOS2-BL",
+      "pass": "BL",
+      "passNumber": 0,
+      "sampleType": "OOS2-BL",
+      "isInSample": false,
+      "dateRange": "2024AprJun",
+      "symbol": "NAS100",
+      "timeframe": "M05",
+      "broker": "FXTM",
+      "eaVersion": "5.0.0.3",
+      "filename": "BL_OOS2-BL.json",
+      "processed": "2025-11-28",
+      "tradeCount": 717,
+      "netProfit": -929.22,
+      "winRate": null,
+      "profitFactor": null
+    },
+    {
+      "id": "BL_OOS3-BL",
+      "pass": "BL",
+      "passNumber": 0,
+      "sampleType": "OOS3-BL",
+      "isInSample": false,
+      "dateRange": "2024OctDec",
+      "symbol": "NAS100",
+      "timeframe": "M05",
+      "broker": "FXTM",
+      "eaVersion": "5.0.0.3",
+      "filename": "BL_OOS3-BL.json",
+      "processed": "2025-11-28",
+      "tradeCount": 743,
+      "netProfit": -1489.66,
+      "winRate": null,
+      "profitFactor": null
+    }
+  ],
+  "comparison": {
+    "baseline": {
+      "IS": "BL_IS",
+      "OOS1": "BL_OOS1-BL",
+      "OOS2": "BL_OOS2-BL",
+      "OOS3": "BL_OOS3-BL"
+    },
+    "pass1": {
+      "IS": null,
+      "OOS1": null,
+      "OOS2": null,
+      "OOS3": null
+    },
+    "pass2": {
+      "IS": null,
+      "OOS1": null,
+      "OOS2": null,
+      "OOS3": null
+    }
+  }
+}

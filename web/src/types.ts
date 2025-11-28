@@ -259,3 +259,39 @@ export function getSampleColor(sampleType: string): string {
   if (sampleType === 'IS') return 'bg-emerald-500/20 text-emerald-400';
   return 'bg-amber-500/20 text-amber-400';
 }
+
+/**
+ * Run metadata for multi-run comparison
+ */
+export interface RunInfo {
+  id: string;
+  pass: string;
+  passNumber: number;
+  sampleType: string;
+  isInSample: boolean;
+  dateRange: string;
+  symbol: string;
+  timeframe: string;
+  broker: string;
+  eaVersion: string;
+  filename: string;
+  processed: string;
+  tradeCount: number;
+  netProfit: number;
+  winRate: number | null;
+  profitFactor: number | null;
+}
+
+/**
+ * Index of all available runs
+ */
+export interface RunIndex {
+  version: string;
+  lastUpdated: string;
+  runs: RunInfo[];
+  comparison: {
+    baseline: { IS: string | null; OOS1: string | null; OOS2: string | null; OOS3: string | null };
+    pass1: { IS: string | null; OOS1: string | null; OOS2: string | null; OOS3: string | null };
+    pass2: { IS: string | null; OOS1: string | null; OOS2: string | null; OOS3: string | null };
+  };
+}

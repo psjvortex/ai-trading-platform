@@ -45,8 +45,11 @@ export interface ConfluencePattern {
 
 export interface OptimizationFilter {
   metric: keyof Trade;
-  min?: number;
-  max?: number;
+  min?: number;           // Floor threshold min value
+  max?: number;           // Floor threshold max value (for range display)
+  ceilingMin?: number;    // Ceiling threshold min value (for range display)  
+  ceilingMax?: number;    // Ceiling threshold max value
+  useCeiling?: boolean;   // Whether ceiling filter is enabled
   type?: 'numeric' | 'categorical';
   selectedValues?: string[];
   enabled: boolean;
@@ -274,6 +277,15 @@ export function findDynamicPatterns(
   return patterns.sort((a, b) => b.winRate - a.winRate);
 }
 
+// Time segment metrics that use string format like "15-045"
+const TIME_SEGMENT_METRICS = ['IN_Segment_15M_OP_01', 'IN_Segment_30M_OP_01', 'IN_Segment_01H_OP_01', 'IN_Segment_02H_OP_01', 'IN_Segment_03H_OP_01', 'IN_Segment_04H_OP_01'];
+
+// Helper to extract segment number from string like "15-045" or "1h-012"
+function extractSegmentNumber(value: string): number {
+  const match = String(value).match(/\d+$/);
+  return match ? parseInt(match[0], 10) : 0;
+}
+
 export function optimizeStrategy(
   trades: Trade[],
   direction: 'Long' | 'Short' | 'All',
@@ -295,8 +307,17 @@ export function optimizeStrategy(
           return filter.selectedValues!.includes(val);
         });
       } else if (filter.min !== undefined && filter.max !== undefined) {
+        // Check if this is a time segment metric (needs special parsing)
+        const isTimeSegment = TIME_SEGMENT_METRICS.includes(String(filter.metric));
+        
         filtered = filtered.filter(t => {
-          const val = t[filter.metric] as number;
+          let val: number;
+          if (isTimeSegment) {
+            // Parse segment number from string like "15-045" or "1h-012"
+            val = extractSegmentNumber(String(t[filter.metric]));
+          } else {
+            val = t[filter.metric] as number;
+          }
           return val >= filter.min! && val <= filter.max!;
         });
       }

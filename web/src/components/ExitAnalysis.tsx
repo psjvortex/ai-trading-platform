@@ -8,6 +8,9 @@ import { Button } from './ui/button';
 interface ExitAnalysisProps {
   trades: Trade[];
   direction: 'All' | 'Long' | 'Short';
+  eaInputs?: Record<string, { value: string | number | boolean; type: string }> | null;
+  allEaInputs?: Record<string, { name: string; type: string; value: string | number | boolean; comment: string; group: string }> | null;
+  eaVersion?: string;
 }
 
 const EA_MAPPINGS: Record<string, any> = {
@@ -26,9 +29,18 @@ const EA_MAPPINGS: Record<string, any> = {
   'Signal_Entry_JerkSlope': { buyInput: 'MinJerkSlopeBuy', sellInput: 'MinJerkSlopeSell', defaultBuy: 1.0, defaultSell: -1.0, type: 'range_buy_min_sell_max' },
 };
 
-export default function ExitAnalysis({ trades, direction }: ExitAnalysisProps) {
+export default function ExitAnalysis({ trades, direction, eaInputs, allEaInputs, eaVersion }: ExitAnalysisProps) {
   const [activeTab, setActiveTab] = useState<'TP' | 'SL'>('TP');
   const [copied, setCopied] = useState(false);
+
+  // Helper to get EA input value from parsed inputs
+  const getEAInputValue = (inputName: string, fallback: number): number => {
+    if (eaInputs && eaInputs[inputName]) {
+      const val = eaInputs[inputName].value;
+      return typeof val === 'number' ? val : parseFloat(String(val)) || fallback;
+    }
+    return fallback;
+  };
 
   // Ignore global direction filter for this report to show all TP/SL events
   const tpTrades = useMemo(() => trades.filter(t => {
@@ -117,38 +129,45 @@ export default function ExitAnalysis({ trades, direction }: ExitAnalysisProps) {
       return validValues.reduce((a, b) => a + b, 0) / validValues.length;
     };
 
-    // Get EA Version from first trade
-    const eaVersion = tpTrades[0]?.Strategy_Version_ID_OP_03 || 'Unknown';
-
-    let code = `// === TP ANALYSIS INPUTS (Generated: ${new Date().toLocaleString()}) ===\n`;
-    code += `// Based on ${tpTrades.length} Take Profit Trades (Long: ${tpLong.length}, Short: ${tpShort.length})\n`;
-    code += `// EA Version: ${eaVersion}\n`;
-    code += `input group "🎯 TP Analysis Filters"\n`;
-
+    // Get EA Version from props or first trade
+    const version = eaVersion || tpTrades[0]?.Strategy_Version_ID_OP_03 || 'Unknown';
+    
+    // Build list of optimized values from TP trade analysis
+    const optimizedValues: Array<{ name: string; value: number; comment: string }> = [];
+    
+    // Calculate optimized values from TP trades
     AVAILABLE_METRICS.forEach(m => {
       const mapping = EA_MAPPINGS[m.key];
       if (!mapping) return;
-
-      // Global Settings
-      if (mapping.globalInput) {
-        const avgVal = getAvg(tpTrades, m.key);
-        const val = avgVal !== undefined ? avgVal : mapping.defaultGlobal;
-        code += `input double ${mapping.globalInput} = ${val.toFixed(2)};\n`;
-      }
-
-      // Buy/Sell Specific Settings
+      
       if (mapping.buyInput && mapping.sellInput) {
         const buyAvg = getAvg(tpLong, m.key);
         const sellAvg = getAvg(tpShort, m.key);
-
-        const buyVal = buyAvg !== undefined ? buyAvg : mapping.defaultBuy;
-        const sellVal = sellAvg !== undefined ? sellAvg : mapping.defaultSell;
-
-        code += `input double ${mapping.buyInput} = ${buyVal.toFixed(2)};\n`;
-        code += `input double ${mapping.sellInput} = ${sellVal.toFixed(2)};\n`;
+        
+        if (buyAvg !== undefined) {
+          optimizedValues.push({ name: mapping.buyInput, value: buyAvg, comment: `${m.label} BUY avg from ${tpLong.length} TP trades` });
+        }
+        if (sellAvg !== undefined) {
+          optimizedValues.push({ name: mapping.sellInput, value: sellAvg, comment: `${m.label} SELL avg from ${tpShort.length} TP trades` });
+        }
       }
     });
-
+    
+    // If no optimizations, show message
+    if (optimizedValues.length === 0) {
+      return `// No TP trades available for analysis.\n`;
+    }
+    
+    // Build simple output - just the changed values
+    let code = `// === TP ANALYSIS - OPTIMIZED VALUES ===\n`;
+    code += `// EA: v${version} | Generated: ${new Date().toLocaleString()}\n`;
+    code += `// Based on ${tpTrades.length} TP Trades (Long: ${tpLong.length}, Short: ${tpShort.length})\n`;
+    code += `// Copy this list and paste to Claude to update the EA\n\n`;
+    
+    for (const opt of optimizedValues) {
+      code += `${opt.name} = ${opt.value.toFixed(2)}\n`;
+    }
+    
     return code;
   };
 
@@ -189,7 +208,7 @@ export default function ExitAnalysis({ trades, direction }: ExitAnalysisProps) {
     </div>
   );
 
-  const generatedCode = useMemo(() => generateMQL5Code(), [tpTrades]);
+  const generatedCode = useMemo(() => generateMQL5Code(), [tpTrades, eaInputs, eaVersion]);
 
   return (
     <Card className="h-full flex flex-col">

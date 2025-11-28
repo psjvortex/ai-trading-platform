@@ -10,7 +10,8 @@
         "tickphysics_crypto_selfhealing_crossover_ea_v6_0": "cpp",
         "complex": "cpp",
         "tp_integrated_ea_crossover_3_0_0": "cpp",
-        "tp_integrated_ea_crossover_3_0_05m": "cpp"
+        "tp_integrated_ea_crossover_3_0_05m": "cpp",
+        "tp_integrated_ea_crossover_5_0_0_3_ma": "cpp"
     },
     "diffEditor.codeLens": true
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Papa from 'papaparse'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download, Clock, Calendar, LayoutDashboard, Settings, LineChartIcon, Filter, ArrowUpDown, Upload } from 'lucide-react'
+import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download, Clock, Calendar, LayoutDashboard, Settings, LineChartIcon, Filter, ArrowUpDown, Upload, GitCompare } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Trade, getPassLabel, getSampleLabel, getPassColor, getSampleColor } from '../types'
 import { OptimizationFilter, optimizeStrategy } from '../lib/analytics'
@@ -15,12 +15,19 @@ import SessionAnalysis from './SessionAnalysis'
 import PerformanceSummary from './PerformanceSummary'
 import { ExcursionAnalysis } from './ExcursionAnalysis'
 import { DataLoader } from './DataLoader'
+import { RunSelector } from './RunSelector'
+import { RunComparison } from './RunComparison'
+import { PassComparison } from './PassComparison'
 
 export default function Dashboard() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [showDataLoader, setShowDataLoader] = useState(false)
+  const [showComparison, setShowComparison] = useState(false)
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null)
   const [runMetadata, setRunMetadata] = useState<OptimizationRunMeta | null>(null)
+  const [eaInputs, setEaInputs] = useState<Record<string, any> | null>(null)
+  const [allEaInputs, setAllEaInputs] = useState<Record<string, any> | null>(null)
   const [stats, setStats] = useState({
     totalTrades: 0,
     netProfit: 0,
@@ -49,7 +56,7 @@ export default function Dashboard() {
   const [direction, setDirection] = useState<'All' | 'Long' | 'Short'>('All');
   
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'temporal' | 'sessions' | 'optimization' | 'excursions' | 'analysis'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'summary' | 'temporal' | 'sessions' | 'optimization' | 'excursions' | 'analysis' | 'comparison'>('overview');
   
   // Lifted Optimization Filter State (shared across all tabs)
   const [longFilters, setLongFilters] = useState<OptimizationFilter[]>([]);
@@ -97,10 +104,83 @@ export default function Dashboard() {
     return true;
   });
 
+  // Load a specific run by ID
+  const loadRun = useCallback(async (runId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/data/runs/${runId}.json`);
+      if (response.ok) {
+        const jsonData = await response.json();
+        const parsedTrades = (jsonData.trades || []).map((row: any) => ({
+          ...row,
+          NetProfit: (row.OUT_Profit_OP_01 || 0) + (row.OUT_Commission || 0) + (row.OUT_Swap || 0)
+        })) as Trade[];
+        
+        if (jsonData.metadata?.optimizationRun) {
+          const opt = jsonData.metadata.optimizationRun;
+          setRunMetadata({
+            symbol: opt.symbol || '',
+            timeframe: opt.timeframe || '',
+            broker: opt.broker || '',
+            pass: opt.pass || '',
+            passNumber: opt.passNumber ?? 0,
+            sampleType: opt.sampleType || '',
+            isInSample: opt.isInSample ?? true,
+            oosNumber: opt.oosNumber,
+            dateRange: opt.dateRange || '',
+            eaVersion: opt.eaVersion || '',
+            fileType: opt.fileType || 'trades',
+            rawFilename: opt.rawFilename || ''
+          });
+        }
+        
+        // Load EA input values if present
+        if (jsonData.metadata?.eaInputs) {
+          setEaInputs(jsonData.metadata.eaInputs);
+          console.log('📊 Loaded EA filter inputs:', Object.keys(jsonData.metadata.eaInputs).length, 'parameters');
+        } else {
+          setEaInputs(null);
+        }
+        
+        // Load ALL EA inputs for complete block generation
+        if (jsonData.metadata?.allEaInputs) {
+          setAllEaInputs(jsonData.metadata.allEaInputs);
+          console.log('📊 Loaded ALL EA inputs:', Object.keys(jsonData.metadata.allEaInputs).length, 'parameters');
+        } else {
+          setAllEaInputs(null);
+        }
+        
+        setTrades(parsedTrades);
+        setCurrentRunId(runId);
+      }
+    } catch (error) {
+      console.error('Error loading run:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Handle run selection from dropdown
+  const handleRunSelect = useCallback((runId: string) => {
+    loadRun(runId);
+  }, [loadRun]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // First try to load JSON (includes metadata)
+        // First check if there's a runs index
+        const indexResponse = await fetch('/data/runs/index.json');
+        if (indexResponse.ok) {
+          const indexData = await indexResponse.json();
+          if (indexData.runs && indexData.runs.length > 0) {
+            // Load the first run (most recent baseline IS)
+            const firstRun = indexData.runs[0];
+            await loadRun(firstRun.id);
+            return;
+          }
+        }
+        
+        // Fallback: try to load JSON (includes metadata)
         const jsonResponse = await fetch('/data/trades.json')
         if (jsonResponse.ok) {
           const jsonText = await jsonResponse.text()
@@ -127,7 +207,9 @@ export default function Dashboard() {
                   isInSample: opt.isInSample ?? true,
                   oosNumber: opt.oosNumber,
                   dateRange: opt.dateRange || '',
-                  eaVersion: opt.eaVersion || ''
+                  eaVersion: opt.eaVersion || '',
+                  fileType: opt.fileType || 'trades',
+                  rawFilename: opt.rawFilename || ''
                 })
                 console.log('Loaded optimization metadata:', opt)
               }
@@ -333,6 +415,9 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 space-y-8 max-w-[1600px] mx-auto">
+      {/* Comparison Modal */}
+      {showComparison && <RunComparison onClose={() => setShowComparison(false)} />}
+      
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Alpha Physics Dashboard</h1>
@@ -354,7 +439,14 @@ export default function Dashboard() {
             </p>
           )}
         </div>
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
+          {/* Run Selector */}
+          <RunSelector 
+            currentRunId={currentRunId}
+            onRunSelect={handleRunSelect}
+            onCompareToggle={() => setShowComparison(true)}
+            compareMode={showComparison}
+          />
           <button 
             onClick={() => setShowDataLoader(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -451,6 +543,17 @@ export default function Dashboard() {
           >
             <LineChartIcon className="h-4 w-4" />
             Analysis
+          </button>
+          <button
+            onClick={() => setActiveTab('comparison')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'comparison' 
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted'
+            }`}
+          >
+            <GitCompare className="h-4 w-4" />
+            Pass Compare
           </button>
         </div>
         
@@ -720,6 +823,9 @@ export default function Dashboard() {
             setShortFilters={setShortFilters}
             allFilters={allFilters}
             setAllFilters={setAllFilters}
+            eaInputs={eaInputs}
+            allEaInputs={allEaInputs}
+            eaVersion={runMetadata?.eaVersion}
           />
         </div>
       )}
@@ -732,7 +838,19 @@ export default function Dashboard() {
 
       {activeTab === 'analysis' && (
         <div className="space-y-8">
-          <ExitAnalysis trades={optimizedTrades} direction={direction} />
+          <ExitAnalysis 
+            trades={optimizedTrades} 
+            direction={direction} 
+            eaInputs={eaInputs}
+            allEaInputs={allEaInputs}
+            eaVersion={runMetadata?.eaVersion}
+          />
+        </div>
+      )}
+
+      {activeTab === 'comparison' && (
+        <div className="space-y-8">
+          <PassComparison />
         </div>
       )}
     </div>

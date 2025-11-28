@@ -19,6 +19,7 @@ import {
   parseOptimizationFilename
 } from './types';
 import { TimeSegmentCalculator } from './timeSegmentCalculator';
+import { loadEAInputs, getFilterInputs, getAllInputs } from './eaInputParser';
 
 export class CSVProcessor {
   private mt5ToCstOffsetHours: number;
@@ -143,8 +144,21 @@ export class CSVProcessor {
   const tradesFilename = path.basename(eaTradesPath);
   const optimizationMeta = parseOptimizationFilename(tradesFilename);
   
+  // Try to load EA input values from source file
+  let eaInputs: Record<string, any> | undefined;
+  let allEaInputs: Record<string, any> | undefined;
+  if (optimizationMeta?.eaVersion) {
+    console.log(`\n� Loading EA input values for v${optimizationMeta.eaVersion}...`);
+    const fullInputs = loadEAInputs(optimizationMeta.eaVersion);
+    if (fullInputs) {
+      eaInputs = getFilterInputs(fullInputs);
+      allEaInputs = getAllInputs(fullInputs);
+      console.log(`✅ Loaded ${Object.keys(eaInputs).length} filter inputs from EA source`);
+    }
+  }
+  
   if (optimizationMeta) {
-    console.log(`\n📊 Optimization Run Detected:`);
+    console.log(`\n�📊 Optimization Run Detected:`);
     console.log(`   Pass: ${optimizationMeta.pass} | Sample: ${optimizationMeta.sampleType}`);
     console.log(`   Date Range: ${optimizationMeta.dateRange} | Broker: ${optimizationMeta.broker}`);
     console.log(`   EA Version: v${optimizationMeta.eaVersion}`);
@@ -160,7 +174,9 @@ export class CSVProcessor {
           eaTradesCSV: path.basename(eaTradesPath),
           eaSignalsCSV: path.basename(eaSignalsPath)
         },
-        optimizationRun: optimizationMeta || undefined
+        optimizationRun: optimizationMeta || undefined,
+        eaInputs: eaInputs,
+        allEaInputs: allEaInputs
       },
       trades: processedTrades,
       statistics,

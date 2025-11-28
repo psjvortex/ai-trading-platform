@@ -4,7 +4,7 @@ import { optimizeStrategy, findBestConfiguration, OptimizationFilter } from '../
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Check, Copy, Sliders, Plus, Trash2, Wand2, TrendingUp, BarChart2 } from 'lucide-react';
+import { Check, Copy, Sliders, Plus, Trash2, Wand2, TrendingUp, BarChart2, Clock } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Format dollar amounts with commas, no decimals
@@ -21,6 +21,9 @@ interface OptimizationEngineProps {
   setShortFilters: (filters: OptimizationFilter[]) => void;
   allFilters: OptimizationFilter[];
   setAllFilters: (filters: OptimizationFilter[]) => void;
+  eaInputs?: Record<string, { value: string | number | boolean; type: string }> | null;
+  allEaInputs?: Record<string, any> | null;
+  eaVersion?: string;
 }
 
 export const AVAILABLE_METRICS: { key: keyof Trade; label: string }[] = [
@@ -51,9 +54,32 @@ export const AVAILABLE_METRICS: { key: keyof Trade; label: string }[] = [
   { key: 'Signal_Exit_PhysicsScore', label: 'Exit Physics Score' },
   { key: 'Signal_Exit_Zone', label: 'Exit Zone' },
   { key: 'Signal_Exit_Regime', label: 'Exit Regime' },
+  
+  // Time Segment Filters (CST-based, matches EA inputs)
+  { key: 'IN_CST_Day_OP_01', label: '📅 Day of Week' },
+  { key: 'IN_Segment_15M_OP_01', label: '⏱️ 15-Min Segment' },
+  { key: 'IN_Segment_30M_OP_01', label: '⏱️ 30-Min Segment' },
+  { key: 'IN_Segment_01H_OP_01', label: '⏱️ 1-Hour Segment' },
+  { key: 'IN_Segment_02H_OP_01', label: '⏱️ 2-Hour Segment' },
+  { key: 'IN_Segment_03H_OP_01', label: '⏱️ 3-Hour Segment' },
+  { key: 'IN_Segment_04H_OP_01', label: '⏱️ 4-Hour Segment' },
 ];
 
-const CATEGORICAL_METRICS = ['Signal_Entry_Zone', 'Signal_Entry_Regime', 'Signal_Exit_Zone', 'Signal_Exit_Regime'];
+// Categorical metrics (checkbox selection)
+const CATEGORICAL_METRICS = ['Signal_Entry_Zone', 'Signal_Entry_Regime', 'Signal_Exit_Zone', 'Signal_Exit_Regime', 'IN_CST_Day_OP_01'];
+
+// Time segment metrics (numeric range for min/max segment selection)
+const TIME_SEGMENT_METRICS = ['IN_Segment_15M_OP_01', 'IN_Segment_30M_OP_01', 'IN_Segment_01H_OP_01', 'IN_Segment_02H_OP_01', 'IN_Segment_03H_OP_01', 'IN_Segment_04H_OP_01'];
+
+// Segment ranges for validation
+const SEGMENT_RANGES: Record<string, { min: number; max: number; label: string }> = {
+  'IN_Segment_15M_OP_01': { min: 1, max: 96, label: '15-min (1-96)' },
+  'IN_Segment_30M_OP_01': { min: 1, max: 48, label: '30-min (1-48)' },
+  'IN_Segment_01H_OP_01': { min: 1, max: 24, label: '1-hour (1-24)' },
+  'IN_Segment_02H_OP_01': { min: 1, max: 12, label: '2-hour (1-12)' },
+  'IN_Segment_03H_OP_01': { min: 1, max: 8, label: '3-hour (1-8)' },
+  'IN_Segment_04H_OP_01': { min: 1, max: 6, label: '4-hour (1-6)' },
+};
 
 export default function OptimizationEngine({ 
   trades, 
@@ -63,7 +89,10 @@ export default function OptimizationEngine({
   shortFilters,
   setShortFilters,
   allFilters,
-  setAllFilters
+  setAllFilters,
+  eaInputs,
+  allEaInputs,
+  eaVersion
 }: OptimizationEngineProps) {
   const [result, setResult] = useState<any>(null);
   const [longStats, setLongStats] = useState<any>(null);
@@ -219,14 +248,30 @@ export default function OptimizationEngine({
     if (filters.find(f => f.metric === metric)) return;
 
     const isCategorical = CATEGORICAL_METRICS.includes(metricKey);
+    const isTimeSegment = TIME_SEGMENT_METRICS.includes(metricKey);
 
     if (isCategorical) {
       // Find all unique values in the current dataset
       const uniqueValues = Array.from(new Set(result.trades.map((t: Trade) => String(t[metric])))) as string[];
       // Add new filter at the BEGINNING (newest on top)
       setFilters([{ metric, type: 'categorical', selectedValues: uniqueValues, enabled: true }, ...filters]);
+    } else if (isTimeSegment) {
+      // Time segment filters use numeric ranges (segment numbers)
+      // Parse segment number from format like "15-045" or "1h-012"
+      const values = result.trades.map((t: Trade) => {
+        const val = String(t[metric]);
+        const match = val.match(/\d+$/);  // Extract trailing numbers
+        return match ? parseInt(match[0], 10) : 0;
+      }).filter((v: number) => v > 0);
+      
+      const segmentRange = SEGMENT_RANGES[metricKey];
+      const min = segmentRange?.min || Math.min(...values);
+      const max = segmentRange?.max || Math.max(...values);
+
+      // Add new filter with segment range
+      setFilters([{ metric, min, max, type: 'numeric', enabled: true }, ...filters]);
     } else {
-      // Find initial range (min/max of current dataset)
+      // Regular numeric filter
       const values = result.trades.map((t: Trade) => t[metric] as number).filter((v: number) => !isNaN(v));
       const min = Math.min(...values);
       const max = Math.max(...values);
@@ -269,96 +314,218 @@ export default function OptimizationEngine({
     }
   };
 
+  // Helper to get EA input value from parsed inputs
+  const getEAInputValue = (inputName: string, fallback: number): number => {
+    if (eaInputs && eaInputs[inputName]) {
+      const val = eaInputs[inputName].value;
+      return typeof val === 'number' ? val : parseFloat(String(val)) || fallback;
+    }
+    return fallback;
+  };
+
   const generateMQL5Code = () => {
     if (!combinedStats) return '';
     
-    let code = `// === OPTIMIZED INPUTS (Generated: ${new Date().toLocaleString()}) ===\n`;
-    code += `// Total Net: $${formatDollar(combinedStats.netProfit)} | Win Rate: ${combinedStats.winRate.toFixed(1)}% | Trades: ${combinedStats.totalTrades}\n`;
-    code += `// Longs: $${formatDollar(longStats?.netProfit || 0)} (${longStats?.winRate.toFixed(1)}%) | Shorts: $${formatDollar(shortStats?.netProfit || 0)} (${shortStats?.winRate.toFixed(1)}%)\n\n`;
+    // Build a map of optimized filter values from the current filter configuration
+    const optimizedValues: Array<{ name: string; value: number; comment: string }> = [];
     
-    code += `input group "🎯 Optimized Filters"\n`;
-
-    // Mapping of Dashboard Metrics to EA Inputs
-    const EA_MAPPINGS: Record<string, any> = {
-      'Signal_Entry_Quality': { buyInput: 'MinQualityBuy', sellInput: 'MinQualitySell', defaultBuy: 70.0, defaultSell: 70.0, type: 'min_threshold' },
-      'Signal_Entry_PhysicsScore': { buyInput: 'MinPhysicsScoreBuy', sellInput: 'MinPhysicsScoreSell', defaultBuy: 40.0, defaultSell: 40.0, type: 'min_threshold' },
-      'EA_Entry_Spread': { buyInput: 'MaxSpreadPipsBuy', sellInput: 'MaxSpreadPipsSell', defaultBuy: 25.0, defaultSell: 25.0, type: 'max_threshold' },
-      'Signal_Entry_ConfluenceSlope': { buyInput: 'MinConfluenceSlopeBuy', sellInput: 'MinConfluenceSlopeSell', defaultBuy: 1.0, defaultSell: 1.0, type: 'min_threshold' },
-      
-      'Signal_Entry_Speed': { buyInput: 'MinSpeedBuy', sellInput: 'MinSpeedSell', defaultBuy: 1.0, defaultSell: -1.0, type: 'range_buy_min_sell_max' },
-      'Signal_Entry_Acceleration': { buyInput: 'MinAccelerationBuy', sellInput: 'MinAccelerationSell', defaultBuy: 1.0, defaultSell: -1.0, type: 'range_buy_min_sell_max' },
-      'Signal_Entry_Momentum': { buyInput: 'MinMomentumBuy', sellInput: 'MinMomentumSell', defaultBuy: 1.0, defaultSell: -1.0, type: 'range_buy_min_sell_max' },
-      
-      'Signal_Entry_SpeedSlope': { buyInput: 'MinSpeedSlopeBuy', sellInput: 'MinSpeedSlopeSell', defaultBuy: 1.0, defaultSell: -1.0, type: 'range_buy_min_sell_max' },
-      'Signal_Entry_AccelerationSlope': { buyInput: 'MinAccelerationSlopeBuy', sellInput: 'MinAccelerationSlopeSell', defaultBuy: 1.0, defaultSell: -1.0, type: 'range_buy_min_sell_max' },
-      'Signal_Entry_MomentumSlope': { buyInput: 'MinMomentumSlopeBuy', sellInput: 'MinMomentumSlopeSell', defaultBuy: 1.0, defaultSell: -1.0, type: 'range_buy_min_sell_max' },
-      'Signal_Entry_JerkSlope': { buyInput: 'MinJerkSlopeBuy', sellInput: 'MinJerkSlopeSell', defaultBuy: 1.0, defaultSell: -1.0, type: 'range_buy_min_sell_max' },
+    // EA Input name mapping from dashboard metrics to EA input names
+    // v5.0.0.5: Now includes both Min (floor) and Max (ceiling) inputs
+    const EA_MAPPINGS: Record<string, { 
+      minBuyInput: string; 
+      maxBuyInput: string;
+      minSellInput: string; 
+      maxSellInput: string;
+      type: string 
+    }> = {
+      'Signal_Entry_Quality': { 
+        minBuyInput: 'MinQualityBuy', maxBuyInput: 'MaxQualityBuy',
+        minSellInput: 'MinQualitySell', maxSellInput: 'MaxQualitySell',
+        type: 'min_threshold' 
+      },
+      'Signal_Entry_PhysicsScore': { 
+        minBuyInput: 'MinPhysicsScoreBuy', maxBuyInput: 'MaxPhysicsScoreBuy',
+        minSellInput: 'MinPhysicsScoreSell', maxSellInput: 'MaxPhysicsScoreSell',
+        type: 'min_threshold' 
+      },
+      'EA_Entry_Spread': { 
+        minBuyInput: 'MinSpreadPipsBuy', maxBuyInput: 'MaxSpreadPipsBuy',
+        minSellInput: 'MinSpreadPipsSell', maxSellInput: 'MaxSpreadPipsSell',
+        type: 'max_threshold' 
+      },
+      'Signal_Entry_ConfluenceSlope': { 
+        minBuyInput: 'MinConfluenceSlopeBuy', maxBuyInput: 'MaxConfluenceSlopeBuy',
+        minSellInput: 'MinConfluenceSlopeSell', maxSellInput: 'MaxConfluenceSlopeSell',
+        type: 'min_threshold' 
+      },
+      'Signal_Entry_Speed': { 
+        minBuyInput: 'MinSpeedBuy', maxBuyInput: 'MaxSpeedBuy',
+        minSellInput: 'MinSpeedSell', maxSellInput: 'MaxSpeedSell',
+        type: 'range_buy_min_sell_max' 
+      },
+      'Signal_Entry_Acceleration': { 
+        minBuyInput: 'MinAccelerationBuy', maxBuyInput: 'MaxAccelerationBuy',
+        minSellInput: 'MinAccelerationSell', maxSellInput: 'MaxAccelerationSell',
+        type: 'range_buy_min_sell_max' 
+      },
+      'Signal_Entry_Momentum': { 
+        minBuyInput: 'MinMomentumBuy', maxBuyInput: 'MaxMomentumBuy',
+        minSellInput: 'MinMomentumSell', maxSellInput: 'MaxMomentumSell',
+        type: 'range_buy_min_sell_max' 
+      },
+      'Signal_Entry_SpeedSlope': { 
+        minBuyInput: 'MinSpeedSlopeBuy', maxBuyInput: 'MaxSpeedSlopeBuy',
+        minSellInput: 'MinSpeedSlopeSell', maxSellInput: 'MaxSpeedSlopeSell',
+        type: 'range_buy_min_sell_max' 
+      },
+      'Signal_Entry_AccelerationSlope': { 
+        minBuyInput: 'MinAccelerationSlopeBuy', maxBuyInput: 'MaxAccelerationSlopeBuy',
+        minSellInput: 'MinAccelerationSlopeSell', maxSellInput: 'MaxAccelerationSlopeSell',
+        type: 'range_buy_min_sell_max' 
+      },
+      'Signal_Entry_MomentumSlope': { 
+        minBuyInput: 'MinMomentumSlopeBuy', maxBuyInput: 'MaxMomentumSlopeBuy',
+        minSellInput: 'MinMomentumSlopeSell', maxSellInput: 'MaxMomentumSlopeSell',
+        type: 'range_buy_min_sell_max' 
+      },
+      'Signal_Entry_JerkSlope': { 
+        minBuyInput: 'MinJerkSlopeBuy', maxBuyInput: 'MaxJerkSlopeBuy',
+        minSellInput: 'MinJerkSlopeSell', maxSellInput: 'MaxJerkSlopeSell',
+        type: 'range_buy_min_sell_max' 
+      },
     };
-
+    
+    // Time Segment EA Mappings (shared for both directions since time applies to all)
+    const TIME_SEGMENT_EA_MAPPINGS: Record<string, { 
+      enableInput: string;
+      minInput: string; 
+      maxInput: string;
+      segmentCount: number;
+    }> = {
+      'IN_Segment_15M_OP_01': { enableInput: 'UseSegment15M', minInput: 'Segment15M_Min', maxInput: 'Segment15M_Max', segmentCount: 96 },
+      'IN_Segment_30M_OP_01': { enableInput: 'UseSegment30M', minInput: 'Segment30M_Min', maxInput: 'Segment30M_Max', segmentCount: 48 },
+      'IN_Segment_01H_OP_01': { enableInput: 'UseSegment01H', minInput: 'Segment01H_Min', maxInput: 'Segment01H_Max', segmentCount: 24 },
+      'IN_Segment_02H_OP_01': { enableInput: 'UseSegment02H', minInput: 'Segment02H_Min', maxInput: 'Segment02H_Max', segmentCount: 12 },
+      'IN_Segment_03H_OP_01': { enableInput: 'UseSegment03H', minInput: 'Segment03H_Min', maxInput: 'Segment03H_Max', segmentCount: 8 },
+      'IN_Segment_04H_OP_01': { enableInput: 'UseSegment04H', minInput: 'Segment04H_Min', maxInput: 'Segment04H_Max', segmentCount: 6 },
+    };
+    
+    // Day of week mapping
+    const DAY_MAPPING: Record<string, string> = {
+      'Sunday': 'AllowSunday',
+      'Monday': 'AllowMonday', 
+      'Tuesday': 'AllowTuesday',
+      'Wednesday': 'AllowWednesday',
+      'Thursday': 'AllowThursday',
+      'Friday': 'AllowFriday',
+      'Saturday': 'AllowSaturday',
+    };
+    
+    // Collect optimized values from enabled filters
     AVAILABLE_METRICS.forEach(m => {
       const mapping = EA_MAPPINGS[m.key];
-      if (!mapping) return; // Skip metrics not in EA
-
-      // --- GLOBAL SETTINGS ---
-      if (mapping.globalInput) {
-        // Check if filtered in Long or Short (assuming global applies if either is filtered)
-        const filter = longFilters.find(f => f.metric === m.key && f.enabled) || 
-                       shortFilters.find(f => f.metric === m.key && f.enabled) ||
-                       allFilters.find(f => f.metric === m.key && f.enabled);
+      if (!mapping) return;
+      
+      // BUY filter (from longFilters)
+      const buyFilter = longFilters.find(f => f.metric === m.key && f.enabled);
+      if (buyFilter) {
+        // Floor (Min) threshold
+        if (mapping.type === 'max_threshold') {
+          // For spread, the "min" in our filter is actually the max spread allowed
+          if (buyFilter.max !== undefined) {
+            optimizedValues.push({ name: mapping.maxBuyInput, value: buyFilter.max, comment: `${m.label} BUY max (spread ceiling)` });
+          }
+        } else {
+          // Regular min threshold
+          if (buyFilter.min !== undefined) {
+            optimizedValues.push({ name: mapping.minBuyInput, value: buyFilter.min, comment: `${m.label} BUY min (floor)` });
+          }
+        }
         
-        let value = mapping.defaultGlobal;
-        if (filter) {
-           if (mapping.type === 'min_threshold') value = filter.min ?? value;
-           if (mapping.type === 'max_threshold') value = filter.max ?? value;
+        // Ceiling (Max) threshold - anti-spike protection
+        if (buyFilter.useCeiling && buyFilter.ceilingMax !== undefined) {
+          optimizedValues.push({ name: mapping.maxBuyInput, value: buyFilter.ceilingMax, comment: `${m.label} BUY max (ceiling)` });
         }
-        code += `input double ${mapping.globalInput} = ${value.toFixed(2)};\n`;
       }
-
-      // --- BUY/SELL SPECIFIC SETTINGS ---
-      if (mapping.buyInput && mapping.sellInput) {
-        // Buy
-        const buyFilter = longFilters.find(f => f.metric === m.key && f.enabled);
-        let buyValue = mapping.defaultBuy;
-        if (buyFilter) {
-           if (mapping.type === 'max_threshold') {
-             buyValue = buyFilter.max ?? buyValue;
-           } else {
-             // Default to min for min_threshold and range_buy_min...
-             buyValue = buyFilter.min ?? buyValue;
-           }
+      
+      // SELL filter (from shortFilters)
+      const sellFilter = shortFilters.find(f => f.metric === m.key && f.enabled);
+      if (sellFilter) {
+        if (mapping.type === 'range_buy_min_sell_max') {
+          // For directional metrics, SELL uses the max value as floor (most negative)
+          if (sellFilter.max !== undefined) {
+            optimizedValues.push({ name: mapping.minSellInput, value: sellFilter.max, comment: `${m.label} SELL min (floor, negative)` });
+          }
+          // Ceiling for SELL (most negative limit - anti-spike)
+          if (sellFilter.useCeiling && sellFilter.ceilingMin !== undefined) {
+            optimizedValues.push({ name: mapping.maxSellInput, value: sellFilter.ceilingMin, comment: `${m.label} SELL max (ceiling, negative)` });
+          }
+        } else if (mapping.type === 'max_threshold') {
+          if (sellFilter.max !== undefined) {
+            optimizedValues.push({ name: mapping.maxSellInput, value: sellFilter.max, comment: `${m.label} SELL max` });
+          }
+        } else {
+          if (sellFilter.min !== undefined) {
+            optimizedValues.push({ name: mapping.minSellInput, value: sellFilter.min, comment: `${m.label} SELL min (floor)` });
+          }
+          if (sellFilter.useCeiling && sellFilter.ceilingMax !== undefined) {
+            optimizedValues.push({ name: mapping.maxSellInput, value: sellFilter.ceilingMax, comment: `${m.label} SELL max (ceiling)` });
+          }
         }
-        code += `input double ${mapping.buyInput} = ${buyValue.toFixed(2)};\n`;
-
-        // Sell
-        const sellFilter = shortFilters.find(f => f.metric === m.key && f.enabled);
-        let sellValue = mapping.defaultSell;
-        if (sellFilter) {
-           if (mapping.type === 'range_buy_min_sell_max') {
-             // Special case for negative values where we want the "max" (ceiling)
-             sellValue = sellFilter.max ?? sellValue;
-           } else if (mapping.type === 'max_threshold') {
-             sellValue = sellFilter.max ?? sellValue;
-           } else {
-             // min_threshold (e.g. Quality > 80 for Sell too)
-             sellValue = sellFilter.min ?? sellValue;
-           }
-        }
-        code += `input double ${mapping.sellInput} = ${sellValue.toFixed(2)};\n`;
       }
     });
     
-    // Handle Categorical/Boolean separately
-    // Zone Filter
-    const zoneFilter = longFilters.find(f => f.metric === 'Signal_Entry_Zone' && f.enabled) || 
+    // Check for Zone filter (AvoidTransitionZone)
+    const zoneFilter = longFilters.find(f => f.metric === 'Signal_Entry_Zone' && f.enabled) ||
                        shortFilters.find(f => f.metric === 'Signal_Entry_Zone' && f.enabled);
     
     if (zoneFilter && zoneFilter.selectedValues) {
-       const avoidsTransition = !zoneFilter.selectedValues.includes('Transition') && !zoneFilter.selectedValues.includes('Avoid');
-       code += `input bool AvoidTransitionZone = ${avoidsTransition ? 'true' : 'false'};\n`;
-    } else {
-       code += `input bool AvoidTransitionZone = true; // Default\n`;
+      const avoidsTransition = !zoneFilter.selectedValues.includes('Transition') && !zoneFilter.selectedValues.includes('Avoid');
+      optimizedValues.push({ name: 'AvoidTransitionZone', value: avoidsTransition ? 1 : 0, comment: 'Zone filter' });
     }
-
+    
+    // Time Segment Filters (check both long and short, use allFilters for shared filters)
+    const allFiltersList = [...longFilters, ...shortFilters, ...allFilters];
+    
+    // Day of Week filter
+    const dayFilter = allFiltersList.find(f => f.metric === 'IN_CST_Day_OP_01' && f.enabled);
+    if (dayFilter && dayFilter.selectedValues) {
+      optimizedValues.push({ name: 'UseDayFilter', value: 1, comment: 'Enable day filter' });
+      const allDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      allDays.forEach(day => {
+        const allowed = dayFilter.selectedValues?.includes(day) ? 1 : 0;
+        optimizedValues.push({ name: DAY_MAPPING[day], value: allowed, comment: `Allow ${day}` });
+      });
+    }
+    
+    // Time Segment range filters
+    Object.entries(TIME_SEGMENT_EA_MAPPINGS).forEach(([metricKey, mapping]) => {
+      const segmentFilter = allFiltersList.find(f => f.metric === metricKey && f.enabled);
+      if (segmentFilter && segmentFilter.min !== undefined && segmentFilter.max !== undefined) {
+        optimizedValues.push({ name: mapping.enableInput, value: 1, comment: `Enable ${metricKey} filter` });
+        optimizedValues.push({ name: mapping.minInput, value: segmentFilter.min, comment: `Min segment (1-${mapping.segmentCount})` });
+        optimizedValues.push({ name: mapping.maxInput, value: segmentFilter.max, comment: `Max segment (1-${mapping.segmentCount})` });
+      }
+    });
+    
+    // If no optimizations, show message
+    if (optimizedValues.length === 0) {
+      return `// No filter optimizations applied yet.\n// Enable filters and adjust values, then copy this output.\n`;
+    }
+    
+    // Build simple output - just the changed values
+    let code = `// === OPTIMIZED FILTER VALUES ===\n`;
+    code += `// EA: v${eaVersion || 'Unknown'} | Generated: ${new Date().toLocaleString()}\n`;
+    code += `// Stats: Net $${formatDollar(combinedStats.netProfit)} | WR ${combinedStats.winRate.toFixed(1)}% | Trades: ${combinedStats.totalTrades}\n`;
+    code += `// Copy this list and paste to Claude to update the EA\n\n`;
+    
+    for (const opt of optimizedValues) {
+      const valueStr = typeof opt.value === 'boolean' 
+        ? (opt.value ? 'true' : 'false')
+        : opt.value.toFixed(2);
+      code += `${opt.name} = ${valueStr}\n`;
+    }
+    
     return code;
   };
 
@@ -773,47 +940,78 @@ export default function OptimizationEngine({
                     );
                   }
 
-                  return (
-                    <div key={idx} className="bg-card border rounded-lg p-3 flex items-center gap-3 shadow-sm">
-                      <div className="w-28 font-medium text-sm">{label}</div>
-                      
-                      <div className="flex-1 flex items-center gap-2">
-                        <input 
-                          type="range" 
-                          min={-100} max={100}
-                          value={filter.min}
-                          onChange={(e) => updateFilter(idx, { min: parseFloat(e.target.value) })}
-                          className="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
-                        />
-                        <div className="flex gap-1 text-xs font-mono">
-                          <input 
-                            type="number" 
-                            value={filter.min}
-                            onChange={(e) => updateFilter(idx, { min: parseFloat(e.target.value) })}
-                            className="w-16 bg-background border rounded px-1 py-0.5"
-                          />
-                          <span className="text-muted-foreground">to</span>
-                          <input 
-                            type="number" 
-                            value={filter.max}
-                            onChange={(e) => updateFilter(idx, { max: parseFloat(e.target.value) })}
-                            className="w-16 bg-background border rounded px-1 py-0.5"
-                          />
-                        </div>
-                      </div>
+                  // Check if this is an Entry metric that supports ceiling filters
+                  const isEntryMetric = filter.metric.toString().includes('Entry_') && 
+                    !['Signal_Entry_Zone', 'Signal_Entry_Regime'].includes(filter.metric.toString());
 
-                      <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          className="h-7 w-7 p-0" 
-                          onClick={() => autoOptimizeFilter(idx)}
-                          disabled={direction === 'All'}
-                        >
-                          <Wand2 className={`h-4 w-4 ${direction === 'All' ? 'text-zinc-600' : 'text-purple-400'}`} />
-                        </Button>
-                        <Button variant="ghost" className="h-7 w-7 p-0" onClick={() => removeFilter(idx)}>
-                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                        </Button>
+                  return (
+                    <div key={idx} className="bg-card border rounded-lg p-3 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-28 font-medium text-sm">{label}</div>
+                        
+                        <div className="flex-1 space-y-2">
+                          {/* Floor (Min) Threshold Row */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-green-400 w-12">Min ≥</span>
+                            <input 
+                              type="number" 
+                              value={filter.min}
+                              onChange={(e) => updateFilter(idx, { min: parseFloat(e.target.value) })}
+                              className="w-20 bg-background border border-green-500/30 rounded px-2 py-1 text-xs font-mono"
+                              placeholder="Floor"
+                            />
+                            <span className="text-xs text-muted-foreground">to</span>
+                            <input 
+                              type="number" 
+                              value={filter.max}
+                              onChange={(e) => updateFilter(idx, { max: parseFloat(e.target.value) })}
+                              className="w-20 bg-background border rounded px-2 py-1 text-xs font-mono"
+                            />
+                            <span className="text-[10px] text-muted-foreground">(range)</span>
+                          </div>
+                          
+                          {/* Ceiling (Max) Threshold Row - Only for Entry metrics */}
+                          {isEntryMetric && (
+                            <div className="flex items-center gap-2">
+                              <label className="flex items-center gap-1 cursor-pointer">
+                                <input 
+                                  type="checkbox"
+                                  checked={filter.useCeiling || false}
+                                  onChange={(e) => updateFilter(idx, { useCeiling: e.target.checked })}
+                                  className="w-3 h-3"
+                                />
+                                <span className="text-xs text-orange-400 w-10">Max ≤</span>
+                              </label>
+                              <input 
+                                type="number" 
+                                value={filter.ceilingMax ?? 99999}
+                                onChange={(e) => updateFilter(idx, { ceilingMax: parseFloat(e.target.value) })}
+                                disabled={!filter.useCeiling}
+                                className={`w-20 bg-background border rounded px-2 py-1 text-xs font-mono ${
+                                  filter.useCeiling ? 'border-orange-500/30' : 'opacity-40'
+                                }`}
+                                placeholder="Ceiling"
+                              />
+                              <span className="text-[10px] text-orange-400/70">
+                                {filter.useCeiling ? '🛡️ Anti-spike' : '(disabled)'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            className="h-7 w-7 p-0" 
+                            onClick={() => autoOptimizeFilter(idx)}
+                            disabled={direction === 'All'}
+                          >
+                            <Wand2 className={`h-4 w-4 ${direction === 'All' ? 'text-zinc-600' : 'text-purple-400'}`} />
+                          </Button>
+                          <Button variant="ghost" className="h-7 w-7 p-0" onClick={() => removeFilter(idx)}>
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   );
