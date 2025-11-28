@@ -1,12 +1,12 @@
 //+------------------------------------------------------------------+
-//|                    TP_Integrated_EA_Crossover_5_0_0_2.mq5        |
+//|                    TP_Integrated_EA_Crossover_5_0_0_3.mq5        |
 //|                      TickPhysics Institutional Framework (ITPF)  |
 //|                                                                  |
 //+------------------------------------------------------------------+
 
 // #property copyright "Copyright 2025, QuanAlpha"
 // #property link      "https://github.com/quanalpha/tickphysics"
-// #property description "v5.0.0.2 EA - MASTER RELEASE - Granular Buy/Sell Inputs"
+// #property description "v5.0.0.3 EA - MASTER RELEASE - Granular Buy/Sell Inputs"
 
 // EA Version Info (for CSV tracking)
 #define EA_NAME "TP_Integrated_EA"
@@ -26,10 +26,13 @@ enum ENUM_OPT_PASS
 
 enum ENUM_SAMPLE_TYPE
 {
-   SAMPLE_INSAMPLE = 0,  // IS - In-Sample (optimization range)
-   SAMPLE_OOS1 = 1,      // OOS1 - Out-of-Sample 1
-   SAMPLE_OOS2 = 2,      // OOS2 - Out-of-Sample 2
-   SAMPLE_OOS3 = 3       // OOS3 - Out-of-Sample 3
+   SAMPLE_INSAMPLE = 0,      // IS - In-Sample (optimization range)
+   SAMPLE_OOS1 = 1,          // OOS1 - Out-of-Sample 1 (optimized)
+   SAMPLE_OOS2 = 2,          // OOS2 - Out-of-Sample 2 (optimized)
+   SAMPLE_OOS3 = 3,          // OOS3 - Out-of-Sample 3 (optimized)
+   SAMPLE_OOS1_BL = 4,       // OOS1-BL - Out-of-Sample 1 (baseline)
+   SAMPLE_OOS2_BL = 5,       // OOS2-BL - Out-of-Sample 2 (baseline)
+   SAMPLE_OOS3_BL = 6        // OOS3-BL - Out-of-Sample 3 (baseline)
 };
 
 input group "📁 CSV Naming (Optimization Tracking)"
@@ -602,6 +605,9 @@ string GetSampleTypeString()
       case SAMPLE_OOS1:     return "OOS1";
       case SAMPLE_OOS2:     return "OOS2";
       case SAMPLE_OOS3:     return "OOS3";
+      case SAMPLE_OOS1_BL:  return "OOS1-BL";
+      case SAMPLE_OOS2_BL:  return "OOS2-BL";
+      case SAMPLE_OOS3_BL:  return "OOS3-BL";
       default:              return "IS";
    }
 }

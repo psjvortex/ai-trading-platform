@@ -541,6 +541,73 @@ export interface ProcessingStatistics {
   dataQualityScore: number;
 }
 
+/**
+ * Optimization Run Metadata - extracted from v5.0.0.3+ filenames
+ * Format: TP_{SYMBOL}_{TF}_{BROKER}_{PASS}_{SAMPLE}_{DATERANGE}_v{VERSION}_{TYPE}.csv
+ * Example: TP_NAS100_M05_FTMO_P1_OOS1_2025JanOct_v5.0.0.3_trades.csv
+ */
+export interface OptimizationRunMeta {
+  symbol: string;           // NAS100, EURUSD, BTCUSD
+  timeframe: string;        // M05, H01, D01
+  broker: string;           // FTMO, APEX, ICM
+  pass: string;             // BL, P1, P2, P3, FN
+  passNumber: number;       // 0=Baseline, 1-3=Passes, 4=Final
+  sampleType: string;       // IS, OOS1, OOS2, OOS3
+  isInSample: boolean;      // true for IS, false for OOS
+  oosNumber: number | null; // null for IS, 1-3 for OOS
+  dateRange: string;        // 2025JanOct, 2020JanMar
+  eaVersion: string;        // 5.0.0.3
+  fileType: string;         // trades, signals
+  rawFilename: string;      // Original filename
+}
+
+/**
+ * Parse optimization run metadata from v5.0.0.3+ filename format
+ */
+export function parseOptimizationFilename(filename: string): OptimizationRunMeta | null {
+  // Pattern: TP_{SYMBOL}_{TF}_{BROKER}_{PASS}_{SAMPLE}_{DATERANGE}_v{VERSION}_{TYPE}.csv
+  // Also handles optional timestamp for live: TP_NAS100_M05_FTMO_BL_IS_2025JanOct_11271430_v5.0.0.3_trades.csv
+  
+  const regex = /^TP_([A-Z0-9]+)_([A-Z0-9]+)_([A-Z0-9]+)_(BL|P1|P2|P3|FN)_(IS|OOS1|OOS2|OOS3)_([A-Za-z0-9_]+)_v([\d.]+)_(trades|signals)\.csv$/;
+  
+  const match = filename.match(regex);
+  if (!match) {
+    return null; // Not a v5.0.0.3+ format filename
+  }
+  
+  const [, symbol, timeframe, broker, pass, sampleType, dateRange, version, fileType] = match;
+  
+  // Map pass to number
+  const passMap: Record<string, number> = { 'BL': 0, 'P1': 1, 'P2': 2, 'P3': 3, 'FN': 4 };
+  
+  // Map sample type
+  const isInSample = sampleType === 'IS';
+  const oosMatch = sampleType.match(/OOS(\d)/);
+  const oosNumber = oosMatch ? parseInt(oosMatch[1]) : null;
+  
+  return {
+    symbol,
+    timeframe,
+    broker,
+    pass,
+    passNumber: passMap[pass] ?? 0,
+    sampleType,
+    isInSample,
+    oosNumber,
+    dateRange,
+    eaVersion: version,
+    fileType,
+    rawFilename: filename
+  };
+}
+
+/**
+ * Check if filename matches the new v5.0.0.3+ format
+ */
+export function isNewFilenameFormat(filename: string): boolean {
+  return parseOptimizationFilename(filename) !== null;
+}
+
 export interface ProcessedDataset {
   metadata: {
     processingTimestamp: string;
@@ -551,6 +618,7 @@ export interface ProcessedDataset {
       eaTradesCSV: string;
       eaSignalsCSV: string;
     };
+    optimizationRun?: OptimizationRunMeta;  // New: parsed from filename
   };
   trades: ProcessedTradeData[];
   statistics: ProcessingStatistics;

@@ -3,8 +3,9 @@ import Papa from 'papaparse'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Activity, TrendingUp, TrendingDown, BarChart3, Zap, Sliders, FileSpreadsheet, Download, Clock, Calendar, LayoutDashboard, Settings, LineChartIcon, Filter, ArrowUpDown, Upload } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { Trade } from '../types'
+import { Trade, getPassLabel, getSampleLabel, getPassColor, getSampleColor } from '../types'
 import { OptimizationFilter, optimizeStrategy } from '../lib/analytics'
+import { OptimizationRunMeta } from '../lib/csvProcessor'
 import OptimizationEngine from './OptimizationEngine'
 import ExitAnalysis from './ExitAnalysis'
 import EfficiencyAnalysis from './EfficiencyAnalysis'
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [showDataLoader, setShowDataLoader] = useState(false)
+  const [runMetadata, setRunMetadata] = useState<OptimizationRunMeta | null>(null)
   const [stats, setStats] = useState({
     totalTrades: 0,
     netProfit: 0,
@@ -55,12 +57,13 @@ export default function Dashboard() {
   const [allFilters, setAllFilters] = useState<OptimizationFilter[]>([]);
 
   // Handler for when data is loaded from DataLoader
-  const handleDataLoaded = useCallback((loadedTrades: Trade[]) => {
+  const handleDataLoaded = useCallback((loadedTrades: Trade[], metadata?: OptimizationRunMeta) => {
     const tradesWithNetProfit = loadedTrades.map(t => ({
       ...t,
       NetProfit: (t.OUT_Profit_OP_01 || 0) + (t.OUT_Commission || 0) + (t.OUT_Swap || 0)
     }))
     setTrades(tradesWithNetProfit)
+    setRunMetadata(metadata || null)
     setShowDataLoader(false)
     setLoading(false)
   }, [])
@@ -97,6 +100,50 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // First try to load JSON (includes metadata)
+        const jsonResponse = await fetch('/data/trades.json')
+        if (jsonResponse.ok) {
+          const jsonText = await jsonResponse.text()
+          if (!jsonText.startsWith('<!') && !jsonText.startsWith('<html')) {
+            try {
+              const jsonData = JSON.parse(jsonText)
+              
+              // Extract trades from JSON
+              const parsedTrades = (jsonData.trades || []).map((row: any) => ({
+                ...row,
+                NetProfit: (row.OUT_Profit_OP_01 || 0) + (row.OUT_Commission || 0) + (row.OUT_Swap || 0)
+              })) as Trade[]
+              
+              // Extract optimization metadata if present
+              if (jsonData.metadata?.optimizationRun) {
+                const opt = jsonData.metadata.optimizationRun
+                setRunMetadata({
+                  symbol: opt.symbol || '',
+                  timeframe: opt.timeframe || '',
+                  broker: opt.broker || '',
+                  pass: opt.pass || '',
+                  passNumber: opt.passNumber ?? 0,
+                  sampleType: opt.sampleType || '',
+                  isInSample: opt.isInSample ?? true,
+                  oosNumber: opt.oosNumber,
+                  dateRange: opt.dateRange || '',
+                  eaVersion: opt.eaVersion || ''
+                })
+                console.log('Loaded optimization metadata:', opt)
+              }
+              
+              if (parsedTrades.length > 0) {
+                setTrades(parsedTrades)
+                setLoading(false)
+                return
+              }
+            } catch (e) {
+              console.log('JSON parse failed, trying CSV')
+            }
+          }
+        }
+        
+        // Fallback to CSV
         const response = await fetch('/data/trades.csv')
         
         // Check if response is OK (200-299) 
@@ -289,7 +336,23 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Alpha Physics Dashboard</h1>
-          <p className="text-muted-foreground mt-1">v4.2.0.6 Analysis • {stats.totalTrades} Trades • ML Optimization Mode • <span className="text-zinc-400">$10,000 Starting Balance</span></p>
+          {runMetadata ? (
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${getPassColor(runMetadata.pass)}`}>
+                {getPassLabel(runMetadata.pass)}
+              </span>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${getSampleColor(runMetadata.sampleType)}`}>
+                {getSampleLabel(runMetadata.sampleType)}
+              </span>
+              <span className="text-muted-foreground text-sm">
+                v{runMetadata.eaVersion} • {runMetadata.symbol} {runMetadata.timeframe} • {runMetadata.broker} • {runMetadata.dateRange} • {stats.totalTrades} Trades
+              </span>
+            </div>
+          ) : (
+            <p className="text-muted-foreground mt-1">
+              {stats.totalTrades} Trades • <span className="text-zinc-400">$10,000 Starting Balance</span>
+            </p>
+          )}
         </div>
         <div className="flex gap-4">
           <button 

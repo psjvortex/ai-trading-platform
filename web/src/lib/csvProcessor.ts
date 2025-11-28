@@ -154,6 +154,59 @@ interface ProcessedTimeData extends TimeSegments {
   session: string
 }
 
+/**
+ * Optimization Run Metadata - parsed from v5.0.0.3+ filenames
+ */
+export interface OptimizationRunMeta {
+  symbol: string
+  timeframe: string
+  broker: string
+  pass: string
+  passNumber: number
+  sampleType: string
+  isInSample: boolean
+  oosNumber: number | null
+  dateRange: string
+  eaVersion: string
+  fileType: string
+  rawFilename: string
+}
+
+/**
+ * Parse optimization run metadata from v5.0.0.3+ filename format
+ */
+export function parseOptimizationFilename(filename: string): OptimizationRunMeta | null {
+  // Pattern: TP_{SYMBOL}_{TF}_{BROKER}_{PASS}_{SAMPLE}_{DATERANGE}_v{VERSION}_{TYPE}.csv
+  const regex = /^TP_([A-Z0-9]+)_([A-Z0-9]+)_([A-Z0-9]+)_(BL|P1|P2|P3|FN)_(IS|OOS1|OOS2|OOS3)_([A-Za-z0-9_]+)_v([\d.]+)_(trades|signals|MT5Report)\.csv$/
+  
+  const match = filename.match(regex)
+  if (!match) {
+    return null
+  }
+  
+  const [, symbol, timeframe, broker, pass, sampleType, dateRange, version, fileType] = match
+  
+  const passMap: Record<string, number> = { 'BL': 0, 'P1': 1, 'P2': 2, 'P3': 3, 'FN': 4 }
+  const isInSample = sampleType === 'IS'
+  const oosMatch = sampleType.match(/OOS(\d)/)
+  const oosNumber = oosMatch ? parseInt(oosMatch[1]) : null
+  
+  return {
+    symbol,
+    timeframe,
+    broker,
+    pass,
+    passNumber: passMap[pass] ?? 0,
+    sampleType,
+    isInSample,
+    oosNumber,
+    dateRange,
+    eaVersion: version,
+    fileType,
+    rawFilename: filename
+  }
+}
+
 export interface ProcessingResult {
   trades: Trade[]
   statistics: {
@@ -164,6 +217,7 @@ export interface ProcessingResult {
     processingTimeMs: number
   }
   errors: string[]
+  metadata?: OptimizationRunMeta
 }
 
 // ============================================================================
@@ -345,6 +399,15 @@ export class BrowserCSVProcessor {
     const processingTime = Date.now() - startTime
     console.log(`✅ Processing complete in ${processingTime}ms`)
 
+    // Try to parse optimization metadata from trades filename
+    const metadata = parseOptimizationFilename(eaTradesFile.name)
+    if (metadata) {
+      console.log(`📊 Optimization Run Detected:`)
+      console.log(`   Pass: ${metadata.pass} | Sample: ${metadata.sampleType}`)
+      console.log(`   Date Range: ${metadata.dateRange} | Broker: ${metadata.broker}`)
+      console.log(`   EA Version: v${metadata.eaVersion}`)
+    }
+
     return {
       trades,
       statistics: {
@@ -354,7 +417,8 @@ export class BrowserCSVProcessor {
         eaSignalsMatched: matchedSignals,
         processingTimeMs: processingTime
       },
-      errors
+      errors,
+      metadata: metadata || undefined
     }
   }
 

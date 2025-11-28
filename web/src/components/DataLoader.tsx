@@ -10,11 +10,11 @@
 
 import { useState, useCallback, DragEvent } from 'react'
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, FolderOpen } from 'lucide-react'
-import { BrowserCSVProcessor, ProcessingResult } from '../lib/csvProcessor'
+import { BrowserCSVProcessor, ProcessingResult, OptimizationRunMeta } from '../lib/csvProcessor'
 import type { Trade } from '../types'
 
 interface DataLoaderProps {
-  onDataLoaded: (trades: Trade[]) => void
+  onDataLoaded: (trades: Trade[], metadata?: OptimizationRunMeta) => void
 }
 
 interface FileSlot {
@@ -107,8 +107,8 @@ export function DataLoader({ onDataLoaded }: DataLoaderProps) {
         console.warn('Processing warnings:', result.errors)
       }
 
-      // Call parent callback with processed trades
-      onDataLoaded(result.trades)
+      // Call parent callback with processed trades and metadata
+      onDataLoaded(result.trades, result.metadata)
     } catch (err) {
       console.error('Processing error:', err)
       setError(`Processing failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -169,8 +169,8 @@ export function DataLoader({ onDataLoaded }: DataLoaderProps) {
         console.warn('Processing warnings:', result.errors)
       }
 
-      // Call parent callback with processed trades
-      onDataLoaded(result.trades)
+      // Call parent callback with processed trades and metadata
+      onDataLoaded(result.trades, result.metadata)
 
     } catch (err) {
       console.error('Error loading from default location:', err)

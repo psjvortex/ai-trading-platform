@@ -1,33 +1,33 @@
 # COMPREHENSIVE PERFORMANCE OPTIMIZATION REPORT
 
-**Generated:** 2025-11-26 04:45:54
-**Dataset:** TP_Integrated_NAS100_M05_MTBacktest_v5.0.0.0_SLOPE_MT5Report.csv
-**Total Trades Analyzed:** 2287
+**Generated:** 2025-11-27 15:39:43
+**Dataset:** TP_Integrated_NAS100_M05_MTBacktest_v5.2.0.2_SLOPE_MT5Report.csv
+**Total Trades Analyzed:** 243
 
 ---
 
 ## 📊 EXECUTIVE SUMMARY
 
 ### Overall Performance
-- **Total Trades:** 2287
-- **Winners:** 759 (33.2%)
-- **Losers:** 1524 (66.6%)
-- **Breakeven:** 4
+- **Total Trades:** 243
+- **Winners:** 88 (36.2%)
+- **Losers:** 155 (63.8%)
+- **Breakeven:** 0
 
 ### Profitability Metrics
-- **Total Profit/Loss:** $-8123.45
-- **Gross Profit (Winners):** $40917.02
-- **Gross Loss (Losers):** $-49040.47
-- **Average Winner:** $53.91
-- **Average Loser:** $-32.18
-- **Profit Factor:** 0.83
-- **Expectancy:** $-3.61 per trade
-- **Largest Win:** $756.06
-- **Largest Loss:** $-1317.56
+- **Total Profit/Loss:** $-535.59
+- **Gross Profit (Winners):** $4389.69
+- **Gross Loss (Losers):** $-4925.28
+- **Average Winner:** $49.88
+- **Average Loser:** $-31.78
+- **Profit Factor:** 0.89
+- **Expectancy:** $-2.20 per trade
+- **Largest Win:** $101.00
+- **Largest Loss:** $-101.00
 
 ### Risk-Reward Profile
-- **Win/Loss Ratio:** 1.68:1
-- **Expected Value:** $-3.61 per trade
+- **Win/Loss Ratio:** 1.57:1
+- **Expected Value:** $-2.20 per trade
 
 ---
 
@@ -35,17 +35,17 @@
 
 ### By Direction
 - **LONG Trades:**
-  - Wins: 407
-  - Losses: 735
-  - Win Rate: 35.6%
+  - Wins: 48
+  - Losses: 74
+  - Win Rate: 39.3%
 
 - **SHORT Trades:**
-  - Wins: 352
-  - Losses: 789
-  - Win Rate: 30.9%
+  - Wins: 40
+  - Losses: 81
+  - Win Rate: 33.1%
 
 ### Key Finding
-Both directions perform similarly
+✅ **LONG trades significantly outperform SHORT trades**
 
 ---
 
@@ -53,44 +53,43 @@ Both directions perform similarly
 
 | Metric | Winners (Avg) | Losers (Avg) | Difference | Insight |
 |--------|--------------|--------------|------------|---------|
-| Quality | 82.84 | 83.34 | -0.51 | ⚠️  Losers higher |
-| Confluence | 84.01 | 81.85 | +2.15 | ✅ Higher is better |
-| PhysicsScore | 59.62 | 55.18 | +4.45 | ✅ Higher is better |
-| Speed | 143.87 | -193.03 | +336.91 | ✅ Higher is better |
-| SpeedSlope | 317.21 | 34.86 | +282.35 | ✅ Higher is better |
-| AccelerationSlope | 267.43 | -42.59 | +310.02 | ✅ Higher is better |
+| Quality | 83.06 | 83.68 | -0.62 | ⚠️  Losers higher |
+| Confluence | 76.14 | 73.42 | +2.72 | ✅ Higher is better |
+| PhysicsScore | 60.16 | 54.06 | +6.11 | ✅ Higher is better |
+| Speed | -67.82 | -54.79 | -13.03 | ⚠️  Losers higher |
+| SpeedSlope | 263.63 | -215.13 | +478.75 | ✅ Higher is better |
+| AccelerationSlope | 454.13 | -200.59 | +654.72 | ✅ Higher is better |
 
 ### Recommended Minimum Thresholds
 Based on the analysis above, to filter out potential losers:
 
-- **Confluence:** ≥ 90.04
-- **PhysicsScore:** ≥ 60.69
-- **Speed:** ≥ -212.34
-- **SpeedSlope:** ≥ 38.35
-- **AccelerationSlope:** ≥ -46.85
+- **Confluence:** ≥ 80.76
+- **PhysicsScore:** ≥ 59.46
+- **SpeedSlope:** ≥ -236.64
+- **AccelerationSlope:** ≥ -220.65
 
 ---
 
 ## ⏰ TIME-BASED PERFORMANCE
 
 ### By Hour Segment (Best to Worst)
-- **1h-013:** 45W/51L (46.9%) | Profit: $878.79 | Avg: $9.15
-- **1h-015:** 37W/48L (43.5%) | Profit: $844.60 | Avg: $9.94
-- **1h-014:** 39W/53L (42.4%) | Profit: $-819.98 | Avg: $-8.91
-- **1h-018:** 25W/38L (39.7%) | Profit: $22.03 | Avg: $0.35
-- **1h-010:** 44W/69L (38.9%) | Profit: $-583.63 | Avg: $-5.16
-- **1h-003:** 33W/53L (38.4%) | Profit: $945.23 | Avg: $10.99
-- **1h-012:** 32W/52L (38.1%) | Profit: $1216.66 | Avg: $14.48
-- **1h-002:** 48W/84L (36.1%) | Profit: $-321.76 | Avg: $-2.42
-- **1h-004:** 29W/55L (34.5%) | Profit: $-1052.86 | Avg: $-12.53
-- **1h-009:** 36W/71L (33.6%) | Profit: $-2574.31 | Avg: $-24.06
+- **1h-012:** 3W/2L (60.0%) | Profit: $95.59 | Avg: $19.12
+- **1h-004:** 5W/4L (55.6%) | Profit: $81.07 | Avg: $9.01
+- **1h-010:** 8W/7L (53.3%) | Profit: $423.50 | Avg: $28.23
+- **1h-005:** 4W/4L (50.0%) | Profit: $21.94 | Avg: $2.74
+- **1h-019:** 3W/3L (50.0%) | Profit: $-99.05 | Avg: $-16.51
+- **1h-024:** 4W/4L (50.0%) | Profit: $246.27 | Avg: $30.78
+- **1h-001:** 4W/5L (44.4%) | Profit: $45.83 | Avg: $5.09
+- **1h-009:** 3W/4L (42.9%) | Profit: $-15.89 | Avg: $-2.27
+- **1h-022:** 6W/8L (42.9%) | Profit: $109.22 | Avg: $7.80
+- **1h-011:** 5W/7L (41.7%) | Profit: $101.12 | Avg: $8.43
 
 ### By Trading Session
-- **After Hours:** 491W/1097L (30.8%) | Total Profit: $-5936.17
-- **Closing Bell:** 16W/30L (34.8%) | Total Profit: $-225.18
-- **Floor Session:** 199W/312L (38.9%) | Total Profit: $-140.07
-- **News:** 21W/41L (33.9%) | Total Profit: $-745.82
-- **Opening Bell:** 32W/44L (42.1%) | Total Profit: $-1076.21
+- **After Hours:** 58W/114L (33.7%) | Total Profit: $-1436.66
+- **Closing Bell:** 2W/2L (50.0%) | Total Profit: $105.12
+- **Floor Session:** 22W/34L (39.3%) | Total Profit: $507.73
+- **News:** 3W/3L (50.0%) | Total Profit: $71.08
+- **Opening Bell:** 3W/2L (60.0%) | Total Profit: $217.14
 
 ---
 
@@ -99,14 +98,14 @@ Based on the analysis above, to filter out potential losers:
 ### Duration Statistics
 - **Minimum:** 5 minutes
 - **25th Percentile:** 25 minutes
-- **Median:** 70 minutes
-- **75th Percentile:** 195 minutes
-- **Maximum:** 4710 minutes
+- **Median:** 61 minutes
+- **75th Percentile:** 149 minutes
+- **Maximum:** 3040 minutes
 
 ### Duration vs Outcome
-- **Average Winner Duration:** 306 minutes
-- **Average Loser Duration:** 132 minutes
-- **Difference:** +173 minutes
+- **Average Winner Duration:** 173 minutes
+- **Average Loser Duration:** 126 minutes
+- **Difference:** +47 minutes
 
 ✅ Winners hold longer on average
 
@@ -115,11 +114,11 @@ Based on the analysis above, to filter out potential losers:
 ## 📊 EXCURSION ANALYSIS (MFE/MAE)
 
 ### MFE Utilization (How much of potential profit captured)
-- **Winners:** 0.3%
-- **Losers:** -0.2%
+- **Winners:** 0.2%
+- **Losers:** -0.1%
 
 ### MAE Impact (Adverse excursion impact)
-- **Winners:** 528002.6%
+- **Winners:** 313076.1%
 - **Losers:** 0.0%
 
 ### Excursion Efficiency (MFE/MAE ratio)
@@ -134,22 +133,22 @@ Based on the analysis above, to filter out potential losers:
 
 | Exit Reason | Trades | Wins | Losses | Win Rate | Avg Profit | Total Profit |
 |-------------|--------|------|--------|----------|------------|--------------|
-| TP | 11 | 11 | 0 | 100.0% | $473.47 | $5208.19 |
-| SL | 5 | 0 | 5 | 0.0% | $-661.09 | $-3305.47 |
-| MANUAL | 2271 | 748 | 1519 | 32.9% | $-4.41 | $-10026.17 |
+| TP | 34 | 34 | 0 | 100.0% | $96.00 | $3264.00 |
+| SL | 19 | 0 | 19 | 0.0% | $-97.37 | $-1850.00 |
+| MANUAL | 190 | 54 | 136 | 28.4% | $-10.26 | $-1949.59 |
 
 ---
 
 ## 🎯 ZONE & REGIME PERFORMANCE
 
 ### Entry Zones
-- **BEAR:** 1145 trades | 30.7% WR | $-3467.24
-- **BULL:** 1142 trades | 35.6% WR | $-4656.21
+- **BULL:** 122 trades | 39.3% WR | $83.96
+- **BEAR:** 121 trades | 33.1% WR | $-619.55
 
 ### Entry Regimes
-- **NORMAL:** 1754 trades | 32.4% WR | $-5231.40
-- **LOW:** 286 trades | 33.9% WR | $-485.08
-- **HIGH:** 247 trades | 37.7% WR | $-2406.97
+- **NORMAL:** 184 trades | 32.1% WR | $-854.35
+- **LOW:** 27 trades | 48.1% WR | $-143.97
+- **HIGH:** 32 trades | 50.0% WR | $462.73
 
 ---
 
@@ -159,44 +158,42 @@ How much do physics metrics decay from entry to exit?
 
 | Metric | Winners (Avg Decay) | Losers (Avg Decay) | Difference |
 |--------|--------------------|--------------------|------------|
-| PhysicsScoreDecay | 2.41 | -1.50 | +3.90 |
-| SpeedDecay | -22.82 | -251.55 | +228.74 |
-| SpeedSlopeDecay | 324.67 | 123.91 | +200.76 |
-| ConfluenceDecay | 6.11 | 3.73 | +2.39 |
+| PhysicsScoreDecay | 2.58 | -2.53 | +5.11 |
+| SpeedDecay | -1153.67 | -344.70 | -808.98 |
+| SpeedSlopeDecay | 417.14 | -244.57 | +661.71 |
+| ConfluenceDecay | 8.64 | 4.00 | +4.64 |
 
-**Insight:** Losers decay faster - exit sooner when physics deteriorate
+**Insight:** Winners show less physics decay, maintaining momentum longer
 
 ---
 
 ## 🎯 ACTIONABLE RECOMMENDATIONS
 
-1. ⚠️  Win rate (33.2%) is below 50%. Consider tightening entry filters.
-2. ⚠️  Profit factor (0.83) is low. Focus on reducing loss size or increasing winners.
-3. 📊 EA_Entry_Confluence: Winners average 84.01 vs losers 81.85. Set minimum threshold at 90.04
-4. 📊 EA_Entry_PhysicsScore: Winners average 59.62 vs losers 55.18. Set minimum threshold at 60.69
-5. 📊 EA_Entry_Speed: Winners average 143.87 vs losers -193.03. Set minimum threshold at -212.34
-6. 📊 EA_Entry_SpeedSlope: Winners average 317.21 vs losers 34.86. Set minimum threshold at 38.35
-7. 📊 EA_Entry_AccelerationSlope: Winners average 267.43 vs losers -42.59. Set minimum threshold at -46.85
-8. ⏰ Best time segment: 1h-013 (46.9% WR, $878.79)
-9. ⚠️  Worst time segment: 1h-024 (25.0% WR, $303.49). Consider avoiding.
+1. ⚠️  Win rate (36.2%) is below 50%. Consider tightening entry filters.
+2. ⚠️  Profit factor (0.89) is low. Focus on reducing loss size or increasing winners.
+3. 📊 EA_Entry_Confluence: Winners average 76.14 vs losers 73.42. Set minimum threshold at 80.76
+4. 📊 EA_Entry_PhysicsScore: Winners average 60.16 vs losers 54.06. Set minimum threshold at 59.46
+5. 📊 EA_Entry_SpeedSlope: Winners average 263.63 vs losers -215.13. Set minimum threshold at -236.64
+6. 📊 EA_Entry_AccelerationSlope: Winners average 454.13 vs losers -200.59. Set minimum threshold at -220.65
+7. ⏰ Best time segment: 1h-012 (60.0% WR, $95.59)
+8. ⚠️  Worst time segment: 1h-006 (20.0% WR, $-321.04). Consider avoiding.
 
 ---
 
 ## 📋 OPTIMIZATION CHECKLIST
 
 ### Entry Filters (Apply These Minimums)
-- [ ] Confluence ≥ 90.04
-- [ ] PhysicsScore ≥ 60.69
-- [ ] Speed ≥ -212.34
-- [ ] SpeedSlope ≥ 38.35
-- [ ] AccelerationSlope ≥ -46.85
+- [ ] Confluence ≥ 80.76
+- [ ] PhysicsScore ≥ 59.46
+- [ ] SpeedSlope ≥ -236.64
+- [ ] AccelerationSlope ≥ -220.65
 
 ### Time Filters
-- [ ] Favor Opening Bell session (42.1% WR)
-- [ ] Avoid After Hours session (30.8% WR)
+- [ ] Favor Opening Bell session (60.0% WR)
+- [ ] Avoid After Hours session (33.7% WR)
 
 ### Direction Preference
-- [ ] Favor LONG trades (Better win rate: 35.6%)
+- [ ] Favor LONG trades (Better win rate: 39.3%)
 
 ### Exit Management
 - [ ] Monitor for TP exits (highest win rate: 100.0%)

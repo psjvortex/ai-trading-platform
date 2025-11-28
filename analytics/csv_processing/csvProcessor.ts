@@ -14,7 +14,9 @@ import {
   ProcessedTradeData,
   ProcessedDataset,
   ValidationError,
-  ProcessingStatistics
+  ProcessingStatistics,
+  OptimizationRunMeta,
+  parseOptimizationFilename
 } from './types';
 import { TimeSegmentCalculator } from './timeSegmentCalculator';
 
@@ -136,17 +138,29 @@ export class CSVProcessor {
     console.log(`\n✅ Processing complete in ${processingTime}ms`);
   // Export detailed missing EA exit report (if any)
   this.exportMissingEAExitReport(processedTrades);
+  
+  // Try to parse optimization metadata from trades filename (v5.0.0.3+ format)
+  const tradesFilename = path.basename(eaTradesPath);
+  const optimizationMeta = parseOptimizationFilename(tradesFilename);
+  
+  if (optimizationMeta) {
+    console.log(`\n📊 Optimization Run Detected:`);
+    console.log(`   Pass: ${optimizationMeta.pass} | Sample: ${optimizationMeta.sampleType}`);
+    console.log(`   Date Range: ${optimizationMeta.dateRange} | Broker: ${optimizationMeta.broker}`);
+    console.log(`   EA Version: v${optimizationMeta.eaVersion}`);
+  }
     
   return {
       metadata: {
         processingTimestamp: new Date().toISOString(),
-        dataModelVersion: '2.0.0',
+        dataModelVersion: '2.1.0',
         totalTrades: processedTrades.length,
         sourceFiles: {
           mt5Report: path.basename(mt5ReportPath),
           eaTradesCSV: path.basename(eaTradesPath),
           eaSignalsCSV: path.basename(eaSignalsPath)
-        }
+        },
+        optimizationRun: optimizationMeta || undefined
       },
       trades: processedTrades,
       statistics,
@@ -160,15 +174,95 @@ export class CSVProcessor {
 
   /**
    * Load MT5 backtest report CSV
+   * Handles both raw MT5 reports (with settings/orders sections) and pre-cleaned CSVs
    */
   private loadMT5Report(filePath: string): MT5ReportRow[] {
-    const content = fs.readFileSync(filePath, 'utf-8');
+    const rawContent = fs.readFileSync(filePath, 'utf-8');
+    // Normalize line endings (Windows CRLF -> Unix LF)
+    const content = rawContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = content.split('\n');
+    
+    // Check if this is a raw MT5 report (starts with "Strategy Tester Report")
+    const isRawReport = lines[0]?.includes('Strategy Tester Report');
+    
+    if (isRawReport) {
+      console.log('   📋 Detected raw MT5 report format - extracting Deals section...');
+      
+      // Find the Deals section header
+      let dealsStartIndex = -1;
+      for (let i = 0; i < lines.length; i++) {
+        // Look for standalone "Deals" section marker
+        if (lines[i].startsWith('Deals,,,')) {
+          dealsStartIndex = i;
+          break;
+        }
+      }
+      
+      if (dealsStartIndex === -1) {
+        throw new Error('Could not find "Deals" section in MT5 report');
+      }
+      
+      // The header row is right after "Deals,,,"
+      // Strip trailing commas that cause parsing issues
+      const headerLine = lines[dealsStartIndex + 1].replace(/,+$/, '');
+      console.log(`   📍 Found Deals section at line ${dealsStartIndex + 1}`);
+      
+      // Extract just the Deals data (skip the "Deals,,," marker and header)
+      const dealsLines = [headerLine];
+      for (let i = dealsStartIndex + 2; i < lines.length; i++) {
+        // Strip trailing commas from each line
+        const line = lines[i].trim().replace(/,+$/, '');
+        if (!line) continue;
+        
+        // Stop if we hit another section or end of data
+        if (line.startsWith('Orders,,,') || line.startsWith('Total')) break;
+        
+        // Skip balance rows (Type = "balance")
+        const parts = line.split(',');
+        if (parts[3]?.trim() === 'balance') {
+          console.log('   ⏭️  Skipping balance row');
+          continue;
+        }
+        
+        dealsLines.push(line);
+      }
+      
+      console.log(`   ✅ Extracted ${dealsLines.length - 1} deal rows from raw report`);
+      
+      // Parse the extracted deals section
+      const dealsContent = dealsLines.join('\n');
+      const records = parse(dealsContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        bom: true,
+        relax_column_count: true,
+        cast: (value, context) => {
+          // Clean up MT5's space-formatted numbers (e.g., "10 000.00" -> "10000.00")
+          const raw = value === undefined || value === null ? '' : String(value);
+          const cleaned = raw.trim().replace(/\s+/g, '');
+          
+          // Numeric columns
+          if (context.column === 'Deal' || context.column === 'Order') {
+            return parseInt(cleaned) || 0;
+          }
+          if (['Volume', 'Price', 'Commission', 'Swap', 'Profit', 'Balance'].includes(String(context.column))) {
+            return parseFloat(cleaned) || 0;
+          }
+          return raw.trim();
+        }
+      });
+      
+      return records as MT5ReportRow[];
+    }
+    
+    // Original logic for pre-cleaned CSVs
     const records = parse(content, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
-      bom: true,  // Handle UTF-8 BOM
-      relax_column_count: true  // Handle inconsistent column counts
+      bom: true,
+      relax_column_count: true
     });
     return records as MT5ReportRow[];
   }

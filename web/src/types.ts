@@ -196,3 +196,66 @@ export interface DashboardState {
   loading: boolean;
   error: string | null;
 }
+
+/**
+ * Optimization Run Metadata - parsed from v5.0.0.3+ filenames
+ */
+export interface OptimizationRunMeta {
+  symbol: string;           // NAS100, EURUSD, BTCUSD
+  timeframe: string;        // M05, H01, D01
+  broker: string;           // FTMO, APEX, ICM
+  pass: string;             // BL, P1, P2, P3, FN
+  passNumber: number;       // 0=Baseline, 1-3=Passes, 4=Final
+  sampleType: string;       // IS, OOS1, OOS2, OOS3
+  isInSample: boolean;      // true for IS, false for OOS
+  oosNumber: number | null; // null for IS, 1-3 for OOS
+  dateRange: string;        // 2025JanOct, 2020JanMar
+  eaVersion: string;        // 5.0.0.3
+  fileType: string;         // trades, signals
+  rawFilename: string;      // Original filename
+}
+
+/**
+ * Get display label for optimization pass
+ */
+export function getPassLabel(pass: string): string {
+  const labels: Record<string, string> = {
+    'BL': 'Baseline',
+    'P1': 'Pass 1',
+    'P2': 'Pass 2', 
+    'P3': 'Pass 3',
+    'FN': 'Final'
+  };
+  return labels[pass] || pass;
+}
+
+/**
+ * Get display label for sample type
+ */
+export function getSampleLabel(sampleType: string): string {
+  if (sampleType === 'IS') return 'In-Sample';
+  if (sampleType.startsWith('OOS')) return `Out-of-Sample ${sampleType.slice(3)}`;
+  return sampleType;
+}
+
+/**
+ * Get color class for pass badge
+ */
+export function getPassColor(pass: string): string {
+  const colors: Record<string, string> = {
+    'BL': 'bg-gray-500/20 text-gray-400',
+    'P1': 'bg-blue-500/20 text-blue-400',
+    'P2': 'bg-purple-500/20 text-purple-400',
+    'P3': 'bg-orange-500/20 text-orange-400',
+    'FN': 'bg-green-500/20 text-green-400'
+  };
+  return colors[pass] || 'bg-gray-500/20 text-gray-400';
+}
+
+/**
+ * Get color class for sample type badge
+ */
+export function getSampleColor(sampleType: string): string {
+  if (sampleType === 'IS') return 'bg-emerald-500/20 text-emerald-400';
+  return 'bg-amber-500/20 text-amber-400';
+}
