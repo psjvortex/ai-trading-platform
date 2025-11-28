@@ -249,16 +249,24 @@ export default function OptimizationEngine({
 
     const isCategorical = CATEGORICAL_METRICS.includes(metricKey);
     const isTimeSegment = TIME_SEGMENT_METRICS.includes(metricKey);
+    
+    // Use result.trades if available, otherwise use the raw trades prop
+    const tradesToAnalyze = result?.trades || trades;
+    
+    // Filter trades by direction if needed
+    const directionTrades = direction === 'All' 
+      ? tradesToAnalyze 
+      : tradesToAnalyze.filter((t: Trade) => t.Trade_Direction === direction);
 
     if (isCategorical) {
       // Find all unique values in the current dataset
-      const uniqueValues = Array.from(new Set(result.trades.map((t: Trade) => String(t[metric])))) as string[];
+      const uniqueValues = Array.from(new Set(directionTrades.map((t: Trade) => String(t[metric])))) as string[];
       // Add new filter at the BEGINNING (newest on top)
       setFilters([{ metric, type: 'categorical', selectedValues: uniqueValues, enabled: true }, ...filters]);
     } else if (isTimeSegment) {
       // Time segment filters use numeric ranges (segment numbers)
       // Parse segment number from format like "15-045" or "1h-012"
-      const values = result.trades.map((t: Trade) => {
+      const values = directionTrades.map((t: Trade) => {
         const val = String(t[metric]);
         const match = val.match(/\d+$/);  // Extract trailing numbers
         return match ? parseInt(match[0], 10) : 0;
@@ -272,7 +280,7 @@ export default function OptimizationEngine({
       setFilters([{ metric, min, max, type: 'numeric', enabled: true }, ...filters]);
     } else {
       // Regular numeric filter
-      const values = result.trades.map((t: Trade) => t[metric] as number).filter((v: number) => !isNaN(v));
+      const values = directionTrades.map((t: Trade) => t[metric] as number).filter((v: number) => !isNaN(v));
       const min = Math.min(...values);
       const max = Math.max(...values);
 
@@ -484,6 +492,8 @@ export default function OptimizationEngine({
     
     // EA Input name mapping from dashboard metrics to EA input names
     // v5.0.0.5: Now includes both Min (floor) and Max (ceiling) inputs
+    // NOTE: Some dashboard metrics (Confluence, Jerk raw values) don't have EA inputs
+    //       but are still useful for filtering in the dashboard
     const EA_MAPPINGS: Record<string, { 
       minBuyInput: string; 
       maxBuyInput: string;
@@ -502,14 +512,9 @@ export default function OptimizationEngine({
         type: 'min_threshold' 
       },
       'EA_Entry_Spread': { 
-        minBuyInput: 'MinSpreadPipsBuy', maxBuyInput: 'MaxSpreadPipsBuy',
-        minSellInput: 'MinSpreadPipsSell', maxSellInput: 'MaxSpreadPipsSell',
+        minBuyInput: 'MaxSpreadPips', maxBuyInput: 'MaxSpreadPips',
+        minSellInput: 'MaxSpreadPips', maxSellInput: 'MaxSpreadPips',
         type: 'max_threshold' 
-      },
-      'Signal_Entry_ConfluenceSlope': { 
-        minBuyInput: 'MinConfluenceSlopeBuy', maxBuyInput: 'MaxConfluenceSlopeBuy',
-        minSellInput: 'MinConfluenceSlopeSell', maxSellInput: 'MaxConfluenceSlopeSell',
-        type: 'min_threshold' 
       },
       'Signal_Entry_Speed': { 
         minBuyInput: 'MinSpeedBuy', maxBuyInput: 'MaxSpeedBuy',
@@ -541,11 +546,18 @@ export default function OptimizationEngine({
         minSellInput: 'MinMomentumSlopeSell', maxSellInput: 'MaxMomentumSlopeSell',
         type: 'range_buy_min_sell_max' 
       },
+      'Signal_Entry_ConfluenceSlope': { 
+        minBuyInput: 'MinConfluenceSlopeBuy', maxBuyInput: 'MaxConfluenceSlopeBuy',
+        minSellInput: 'MinConfluenceSlopeSell', maxSellInput: 'MaxConfluenceSlopeSell',
+        type: 'min_threshold'  // Confluence slope is positive for both directions
+      },
       'Signal_Entry_JerkSlope': { 
         minBuyInput: 'MinJerkSlopeBuy', maxBuyInput: 'MaxJerkSlopeBuy',
         minSellInput: 'MinJerkSlopeSell', maxSellInput: 'MaxJerkSlopeSell',
         type: 'range_buy_min_sell_max' 
       },
+      // NOTE: Signal_Entry_Confluence, Signal_Entry_Jerk don't have direct EA inputs
+      // They can still be used for filtering in the dashboard
     };
     
     // Time Segment EA Mappings (shared for both directions since time applies to all)

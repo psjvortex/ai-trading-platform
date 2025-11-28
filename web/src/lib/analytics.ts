@@ -351,7 +351,16 @@ export function findBestRange(
 ): { min: number, max: number, winRate: number } | null {
   if (currentTrades.length < 10) return null;
 
-  const values = currentTrades.map(t => t[metric] as number).filter(v => !isNaN(v));
+  // Check if this is a time segment metric
+  const isTimeSegment = TIME_SEGMENT_METRICS.includes(String(metric));
+
+  const values = currentTrades.map(t => {
+    if (isTimeSegment) {
+      return extractSegmentNumber(String(t[metric]));
+    }
+    return t[metric] as number;
+  }).filter(v => !isNaN(v) && v !== 0);
+  
   if (values.length === 0) return null;
 
   const min = Math.min(...values);
@@ -362,6 +371,8 @@ export function findBestRange(
   // For now, let's just split into 4 quartiles and pick the best one to suggest.
   
   const step = (max - min) / 4;
+  if (step === 0) return { min, max, winRate: 0 };
+  
   let bestRange = { min, max, winRate: 0 };
 
   for (let i = 0; i < 4; i++) {
@@ -369,7 +380,12 @@ export function findBestRange(
     const upper = min + ((i + 1) * step);
     
     const binTrades = currentTrades.filter(t => {
-      const val = t[metric] as number;
+      let val: number;
+      if (isTimeSegment) {
+        val = extractSegmentNumber(String(t[metric]));
+      } else {
+        val = t[metric] as number;
+      }
       return val >= lower && val <= upper;
     });
 
@@ -401,6 +417,9 @@ export function findBestConfiguration(
 ): { min?: number, max?: number, selectedValues?: string[], netProfit: number } | null {
   if (currentTrades.length < 5) return null;
 
+  // Check if this is a time segment metric
+  const isTimeSegment = TIME_SEGMENT_METRICS.includes(String(metric));
+
   if (type === 'categorical') {
     const values = Array.from(new Set(currentTrades.map(t => String(t[metric]))));
     // Limit to 10 values to prevent performance issues with power set (2^10 = 1024 iterations)
@@ -422,8 +441,15 @@ export function findBestConfiguration(
 
     return bestSubset.netProfit > -Infinity ? bestSubset : null;
   } else {
-    // Numeric optimization
-    const values = currentTrades.map(t => t[metric] as number).filter(v => !isNaN(v));
+    // Numeric optimization - handle time segment parsing
+    const values = currentTrades.map(t => {
+      if (isTimeSegment) {
+        // Parse segment number from string like "15-045" or "1h-012"
+        return extractSegmentNumber(String(t[metric]));
+      }
+      return t[metric] as number;
+    }).filter(v => !isNaN(v) && v !== 0);
+    
     if (values.length === 0) return null;
 
     const min = Math.min(...values);
@@ -432,6 +458,12 @@ export function findBestConfiguration(
     // Create 20 bins for finer granularity
     const bins = 20;
     const step = (max - min) / bins;
+    
+    // Handle edge case where all values are the same
+    if (step === 0) {
+      const netProfit = currentTrades.reduce((sum, t) => sum + t.NetProfit, 0);
+      return { min, max, netProfit };
+    }
     
     // Pre-calculate stats for each bin to avoid repeated filtering
     const binStats = [];
@@ -442,7 +474,12 @@ export function findBestConfiguration(
       const isLast = i === bins - 1;
       
       const tradesInBin = currentTrades.filter(t => {
-        const val = t[metric] as number;
+        let val: number;
+        if (isTimeSegment) {
+          val = extractSegmentNumber(String(t[metric]));
+        } else {
+          val = t[metric] as number;
+        }
         return val >= lower && (isLast ? val <= upper : val < upper);
       });
       
