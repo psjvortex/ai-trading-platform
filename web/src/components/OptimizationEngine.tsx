@@ -4,7 +4,7 @@ import { optimizeStrategy, findBestConfiguration, OptimizationFilter } from '../
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Check, Copy, Sliders, Plus, Trash2, Wand2, TrendingUp, BarChart2, Clock } from 'lucide-react';
+import { Check, Copy, Sliders, Plus, Trash2, Wand2, TrendingUp, BarChart2, Clock, Zap, LogOut } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Format dollar amounts with commas, no decimals
@@ -312,6 +312,159 @@ export default function OptimizationEngine({
       }
       setHasTuned(true); // Mark that tuning has been performed
     }
+  };
+
+  // Entry metrics for "Optimize All Entry" button
+  const ENTRY_METRICS = AVAILABLE_METRICS.filter(m => 
+    m.key.startsWith('Signal_Entry_') || 
+    m.key.startsWith('EA_Entry_') || 
+    m.key.startsWith('IN_CST_Day') || 
+    m.key.startsWith('IN_Segment_')
+  );
+
+  // Exit metrics for "Optimize All Exit" button
+  const EXIT_METRICS = AVAILABLE_METRICS.filter(m => 
+    m.key.startsWith('Signal_Exit_')
+  );
+
+  // State for optimization progress
+  const [optimizeProgress, setOptimizeProgress] = useState<{ current: number; total: number; metric: string } | null>(null);
+
+  // Optimize All Entry Filters
+  const handleOptimizeAllEntry = async () => {
+    setIsOptimizing(true);
+    setOptimizeProgress({ current: 0, total: ENTRY_METRICS.length, metric: 'Starting...' });
+    
+    // Allow UI to update
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    let newFilters: OptimizationFilter[] = [];
+    let appliedCount = 0;
+
+    // Get baseline trades for current direction
+    const baselineTrades = optimizeStrategy(trades, direction, []).trades;
+    
+    for (let i = 0; i < ENTRY_METRICS.length; i++) {
+      const metric = ENTRY_METRICS[i];
+      setOptimizeProgress({ current: i + 1, total: ENTRY_METRICS.length, metric: metric.label });
+      await new Promise(resolve => setTimeout(resolve, 5)); // Allow UI update
+      
+      const isCategorical = CATEGORICAL_METRICS.includes(metric.key);
+      const isTimeSegment = TIME_SEGMENT_METRICS.includes(metric.key);
+      const metricType = isCategorical ? 'categorical' : 'numeric';
+      
+      // Find best configuration for this metric against all currently applied filters
+      const contextTrades = newFilters.length > 0 
+        ? optimizeStrategy(trades, direction, newFilters).trades 
+        : baselineTrades;
+      
+      if (contextTrades.length < 10) continue;
+      
+      const bestConfig = findBestConfiguration(contextTrades, metric.key, metricType);
+      
+      if (bestConfig && bestConfig.netProfit > 0) {
+        // Only add filter if it improves profit
+        const testFilter: OptimizationFilter = {
+          metric: metric.key,
+          enabled: true,
+          type: metricType,
+          ...(metricType === 'categorical' 
+            ? { selectedValues: bestConfig.selectedValues }
+            : { min: bestConfig.min, max: bestConfig.max }
+          )
+        };
+        
+        // Verify this filter actually improves results
+        const withFilter = optimizeStrategy(trades, direction, [...newFilters, testFilter]);
+        const withoutFilter = optimizeStrategy(trades, direction, newFilters);
+        
+        if (withFilter.netProfit > withoutFilter.netProfit && withFilter.trades.length >= 10) {
+          newFilters.push(testFilter);
+          appliedCount++;
+        }
+      }
+    }
+    
+    // Merge with existing filters (keep existing, add new ones that don't duplicate)
+    const existingMetrics = new Set(filters.map(f => f.metric));
+    const additionalFilters = newFilters.filter(f => !existingMetrics.has(f.metric));
+    
+    if (additionalFilters.length > 0) {
+      setFilters([...additionalFilters, ...filters]);
+    }
+    
+    setHasTuned(true);
+    setOptimizeProgress(null);
+    setIsOptimizing(false);
+    
+    console.log(`✅ Optimize All Entry: Applied ${appliedCount} new filters`);
+  };
+
+  // Optimize All Exit Filters
+  const handleOptimizeAllExit = async () => {
+    setIsOptimizing(true);
+    setOptimizeProgress({ current: 0, total: EXIT_METRICS.length, metric: 'Starting...' });
+    
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    let newFilters: OptimizationFilter[] = [];
+    let appliedCount = 0;
+
+    // Get current filtered trades (with entry filters applied)
+    const baselineTrades = optimizeStrategy(trades, direction, filters).trades;
+    
+    for (let i = 0; i < EXIT_METRICS.length; i++) {
+      const metric = EXIT_METRICS[i];
+      setOptimizeProgress({ current: i + 1, total: EXIT_METRICS.length, metric: metric.label });
+      await new Promise(resolve => setTimeout(resolve, 5));
+      
+      const isCategorical = CATEGORICAL_METRICS.includes(metric.key);
+      const metricType = isCategorical ? 'categorical' : 'numeric';
+      
+      // Find best configuration against current context
+      const contextTrades = newFilters.length > 0 
+        ? optimizeStrategy(trades, direction, [...filters, ...newFilters]).trades 
+        : baselineTrades;
+      
+      if (contextTrades.length < 10) continue;
+      
+      const bestConfig = findBestConfiguration(contextTrades, metric.key, metricType);
+      
+      if (bestConfig && bestConfig.netProfit > 0) {
+        const testFilter: OptimizationFilter = {
+          metric: metric.key,
+          enabled: true,
+          type: metricType,
+          ...(metricType === 'categorical' 
+            ? { selectedValues: bestConfig.selectedValues }
+            : { min: bestConfig.min, max: bestConfig.max }
+          )
+        };
+        
+        // Verify improvement
+        const withFilter = optimizeStrategy(trades, direction, [...filters, ...newFilters, testFilter]);
+        const withoutFilter = optimizeStrategy(trades, direction, [...filters, ...newFilters]);
+        
+        if (withFilter.netProfit > withoutFilter.netProfit && withFilter.trades.length >= 10) {
+          newFilters.push(testFilter);
+          appliedCount++;
+        }
+      }
+    }
+    
+    // Merge with existing filters
+    const existingMetrics = new Set(filters.map(f => f.metric));
+    const additionalFilters = newFilters.filter(f => !existingMetrics.has(f.metric));
+    
+    if (additionalFilters.length > 0) {
+      setFilters([...filters, ...additionalFilters]);
+    }
+    
+    setHasTuned(true);
+    setOptimizeProgress(null);
+    setIsOptimizing(false);
+    
+    console.log(`✅ Optimize All Exit: Applied ${appliedCount} new filters`);
   };
 
   // Helper to get EA input value from parsed inputs
@@ -817,6 +970,43 @@ export default function OptimizationEngine({
           </CardTitle>
           
           <div className="flex items-center gap-2">
+            {/* Optimize All Entry Button */}
+            <Button 
+              variant="outline" 
+              onClick={handleOptimizeAllEntry}
+              disabled={isOptimizing || direction === 'All'}
+              className={`gap-2 h-9 px-3 ${
+                direction === 'All' 
+                  ? 'border-zinc-700 text-zinc-500 cursor-not-allowed' 
+                  : 'border-emerald-500/50 hover:bg-emerald-500/10 text-emerald-500'
+              }`}
+              title="Optimize all entry metrics automatically"
+            >
+              {isOptimizing && optimizeProgress?.metric.includes('Entry') 
+                ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" /> 
+                : <Zap className="h-4 w-4" />}
+              <span className="hidden sm:inline">⚡ Entry</span>
+            </Button>
+
+            {/* Optimize All Exit Button */}
+            <Button 
+              variant="outline" 
+              onClick={handleOptimizeAllExit}
+              disabled={isOptimizing || direction === 'All'}
+              className={`gap-2 h-9 px-3 ${
+                direction === 'All' 
+                  ? 'border-zinc-700 text-zinc-500 cursor-not-allowed' 
+                  : 'border-orange-500/50 hover:bg-orange-500/10 text-orange-500'
+              }`}
+              title="Optimize all exit metrics automatically"
+            >
+              {isOptimizing && optimizeProgress?.metric.includes('Exit') 
+                ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" /> 
+                : <LogOut className="h-4 w-4" />}
+              <span className="hidden sm:inline">📤 Exit</span>
+            </Button>
+
+            {/* Original Auto-Tune All (for existing filters) */}
             <Button 
               variant="outline" 
               onClick={handleGlobalOptimization}
@@ -826,9 +1016,10 @@ export default function OptimizationEngine({
                   ? 'border-zinc-700 text-zinc-500 cursor-not-allowed' 
                   : 'border-purple-500/50 hover:bg-purple-500/10 text-purple-500'
               }`}
+              title="Auto-tune existing filters"
             >
               {isOptimizing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" /> : <Wand2 className="h-4 w-4" />}
-              Auto-Tune All
+              <span className="hidden sm:inline">Tune</span>
             </Button>
 
             <Select onValueChange={addFilter} disabled={direction === 'All'}>
@@ -843,6 +1034,26 @@ export default function OptimizationEngine({
             </Select>
           </div>
         </CardHeader>
+
+        {/* Progress Indicator for Optimize All */}
+        {optimizeProgress && (
+          <div className="mx-6 mb-2 p-3 bg-zinc-900/50 border border-zinc-700 rounded-lg">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">
+                Optimizing: <span className="text-white font-medium">{optimizeProgress.metric}</span>
+              </span>
+              <span className="text-zinc-500">
+                {optimizeProgress.current} / {optimizeProgress.total}
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-300"
+                style={{ width: `${(optimizeProgress.current / optimizeProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         <CardContent className="space-y-4">
           {/* Two Column Layout: Chart + Filters */}
