@@ -101,6 +101,9 @@ TickPhysics is an institutional-grade trading framework that applies physics con
 - Added ceiling (Max) filters for all physics metrics (anti-spike protection)
 - New functions: CalculateCSTSegments(), CheckTimeSegmentFilters()
 - Time segments use MT5 broker time - 8 hours = CST
+- Web: Added "Optimize All Entry" and "Optimize All Exit" buttons
+- Sequential optimization of all 15 entry metrics or 9 exit metrics
+- Progress indicator shows current metric being optimized
 ```
 
 ---
@@ -345,7 +348,25 @@ Signal_Entry_Regime         → HIGH_VOL, LOW_VOL, etc.
 
 ## 6. Optimization Dashboard
 
-### 6.1 Available Metrics for Filtering
+### 6.1 Bulk Optimization Buttons (NEW)
+The optimizer now has two magic buttons for bulk optimization:
+
+**⚡ Optimize All Entry** (Green Button)
+- Sequentially optimizes all 15 entry metrics
+- Metrics: Quality, Confluence, Momentum, Speed, Acceleration, Jerk, PhysicsScore, 
+  SpeedSlope, AccelerationSlope, MomentumSlope, ConfluenceSlope, JerkSlope,
+  Zone, Regime, Spread, plus all 13 Time Segment filters
+- Each metric only applied if it improves net profit
+- Shows progress bar with current metric name
+
+**🚪 Optimize All Exit** (Yellow Button)
+- Sequentially optimizes all 9 exit metrics
+- Metrics: Exit_Quality, Exit_Confluence, Exit_Momentum, Exit_Speed,
+  Exit_Acceleration, Exit_Jerk, Exit_PhysicsScore, Exit_Zone, Exit_Regime
+- Each metric only applied if it improves net profit
+- Shows progress bar with current metric name
+
+### 6.2 Available Metrics for Filtering
 ```typescript
 // Physics Metrics
 Signal_Entry_Quality, Signal_Entry_Confluence, Signal_Entry_Momentum,
@@ -513,14 +534,23 @@ web/public/data/runs/
 ### Current State (2025-11-28)
 - EA v5.0.0.5 compiled successfully with time segment + ceiling filters
 - Web dashboard build successful, dev server works at localhost:5173
-- All changes committed to git
+- All changes committed to git and pushed to GitHub
 - Analysis shows 15M segment filter could turn -$12k to +$2.5k profit
+- Added "Optimize All Entry" and "Optimize All Exit" bulk optimization buttons
+- Optimizer now has progress indicator for bulk operations
 
 ### Key Context for Next Session
 1. **Time segments match CSV exactly** - Column names like `IN_Segment_15M_OP_01`
 2. **CST = MT5 - 8 hours** - Broker time conversion for segment calculation
 3. **Ceiling filters default to 99999** - Set to actual values after optimization
 4. **Day filter shows Friday/Tuesday worst** - Consider disabling for first test
+5. **Bulk optimization is sequential** - Optimizes each metric one by one, keeps if profitable
+
+### Future Feature: SL/TP Simulator
+User approved for future phase:
+- Add ability to simulate adjusting stop loss and take profit levels
+- Requires SQLite database for optimization presets
+- Will use RunUp/RunDown data from trades for simulation
 
 ### Quick Start Commands
 ```bash
@@ -542,4 +572,4 @@ cd analytics && python3 outlier_ceiling_analysis.py
 ---
 
 *This document should be updated after each significant EA modification.*
-*Last commit: `feat(EA): v5.0.0.5 with Time Segment Filters & Ceiling Filters`*
+*Last commit: `feat(optimizer): Add Optimize All Entry/Exit buttons`*
