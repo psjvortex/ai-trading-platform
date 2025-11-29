@@ -357,7 +357,8 @@ export class BrowserCSVProcessor {
     console.log('🚀 Starting browser CSV processing...')
 
     // Step 1: Parse all CSV files
-    const mt5Rows = await this.parseCSV<MT5ReportRow>(mt5ReportFile)
+    // MT5 Report needs special handling to extract Deals section
+    const mt5Rows = await this.parseMT5Report(mt5ReportFile)
     const eaTradeRows = await this.parseEATrades(eaTradesFile)
     const eaSignalRows = await this.parseCSV<EASignalRow>(eaSignalsFile)
 
@@ -432,6 +433,93 @@ export class BrowserCSVProcessor {
           resolve(results.data as T[])
         },
         error: (error) => {
+          reject(error)
+        }
+      })
+    })
+  }
+
+  /**
+   * Parse MT5 Report - extracts Deals section from raw Strategy Tester Report
+   */
+  private async parseMT5Report(file: File): Promise<MT5ReportRow[]> {
+    const text = await file.text()
+    const lines = text.split('\n')
+    
+    // Check if this is a raw Strategy Tester Report (first line contains "Strategy Tester Report")
+    const firstLine = lines[0] || ''
+    const isRawReport = firstLine.includes('Strategy Tester Report') || 
+                        firstLine.includes('ForexTime') ||
+                        firstLine.includes('Settings')
+    
+    if (!isRawReport) {
+      // Already a clean Deals CSV, parse normally
+      return this.parseCSV<MT5ReportRow>(file)
+    }
+    
+    console.log('   📋 Detected raw MT5 report format - extracting Deals section...')
+    
+    // Find the Deals section - look for "Deals" header row
+    let dealsStartLine = -1
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      // Deals section starts with "Time,Deal,Symbol,Type,Direction,Volume,Price,Order,Commission,Swap,Profit,Fee,Comment"
+      if (line.includes('Time') && line.includes('Deal') && line.includes('Symbol') && 
+          line.includes('Direction') && line.includes('Profit')) {
+        dealsStartLine = i
+        console.log(`   📍 Found Deals section at line ${i + 1}`)
+        break
+      }
+    }
+    
+    if (dealsStartLine === -1) {
+      console.warn('   ⚠️ Could not find Deals section, trying to parse as-is')
+      return this.parseCSV<MT5ReportRow>(file)
+    }
+    
+    // Extract lines from Deals section to end (or until we hit another section)
+    const dealsLines: string[] = []
+    for (let i = dealsStartLine; i < lines.length; i++) {
+      const line = lines[i].trim()
+      
+      // Stop if we hit an empty line followed by a section header, or end of file
+      if (line === '' && i + 1 < lines.length) {
+        const nextLine = lines[i + 1].trim()
+        // Check if next section starts (like "Orders" or summary sections)
+        if (nextLine.startsWith('Orders') || nextLine.startsWith('Summary') || 
+            (nextLine.includes(',') && !nextLine.match(/^\d/))) {
+          // Check if next line doesn't look like a deal (deals start with datetime)
+          if (!nextLine.match(/^\d{4}\.\d{2}\.\d{2}/)) {
+            break
+          }
+        }
+      }
+      
+      // Skip the balance row (contains "balance" in Comment)
+      if (line.toLowerCase().includes('balance') && line.includes('10000')) {
+        console.log('   ⏭️  Skipping balance row')
+        continue
+      }
+      
+      if (line) {
+        dealsLines.push(line)
+      }
+    }
+    
+    console.log(`   ✅ Extracted ${dealsLines.length - 1} deal rows from raw report`)
+    
+    // Parse the extracted Deals section
+    const dealsCSV = dealsLines.join('\n')
+    
+    return new Promise((resolve, reject) => {
+      Papa.parse(dealsCSV, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header: string) => header.trim(),
+        complete: (results) => {
+          resolve(results.data as MT5ReportRow[])
+        },
+        error: (error: Error) => {
           reject(error)
         }
       })
@@ -527,8 +615,12 @@ export class BrowserCSVProcessor {
       const current = sortedRows[i]
       const next = sortedRows[i + 1]
       
-      if (current.Direction.toLowerCase() === 'in' && 
-          next.Direction.toLowerCase() === 'out' &&
+      // Defensive: check Direction exists before accessing
+      const currentDir = current.Direction?.toLowerCase() || ''
+      const nextDir = next.Direction?.toLowerCase() || ''
+      
+      if (currentDir === 'in' && 
+          nextDir === 'out' &&
           current.Symbol === next.Symbol) {
         paired.push({ entry: current, exit: next })
         i++
